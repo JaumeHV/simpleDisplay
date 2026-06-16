@@ -3,12 +3,6 @@ import { DisplayApp, activeDisplays } from "./app.js";
 
 const MODULE_ID = "simple-display";
 
-function refreshAllDisplays() {
-  for (const display of Object.values(activeDisplays)) {
-    display.render(false);
-  }
-}
-
 function refreshDisplaysForActor(actorId) {
   if (!actorId) return;
   for (let i = 1; i <= 4; i++) {
@@ -33,7 +27,7 @@ function buildDisplayTool(displayIndex) {
     icon: "fas fa-tv",
     order: displayIndex,
     button: true,
-    onChange: () => openDisplay(displayIndex)
+    onClick: () => openDisplay(displayIndex)
   };
 }
 
@@ -45,13 +39,15 @@ function buildDisplayTools() {
 }
 
 Hooks.once("init", () => {
-  console.log(`${MODULE_ID} | v0.1.0 initialising`);
+  const version = game.modules.get(MODULE_ID)?.version ?? "unknown";
+  console.log(`${MODULE_ID} | v${version} initialising`);
   registerSettings();
 });
 
 Hooks.once("ready", () => {
-  console.log(`${MODULE_ID} | v0.1.0 ready`);
-  ui.notifications.info("Simple Display v0.1.0 loaded.");
+  const version = game.modules.get(MODULE_ID)?.version ?? "unknown";
+  console.log(`${MODULE_ID} | v${version} ready`);
+  ui.notifications.info(`Simple Display v${version} loaded.`);
 });
 
 Hooks.on("updateActor", (actor) => {

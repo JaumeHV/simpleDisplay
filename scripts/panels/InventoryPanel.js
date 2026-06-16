@@ -41,7 +41,7 @@ export class InventoryPanel extends PanelBase {
         totalItems += qty;
         totalWeight += weight;
 
-        const icon = escapeHtml(item.img) || "icons/svg/mystery-man.svg";
+        const icon = escapeHtml(item.img || "icons/svg/mystery-man.svg");
         const name = escapeHtml(item.name);
 
         itemsHtml += `<div class="sd-inv-item">
