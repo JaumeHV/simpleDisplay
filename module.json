@@ -2,7 +2,7 @@
   "id": "simple-display",
   "title": "Simple Display",
   "description": "Player companion display for HVS tabletop setup.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "authors": [
     {
       "name": "Jaume Pirie"
@@ -21,5 +21,5 @@
   "url": "https://github.com/JaumeHV/simpleDisplay",
   "bugs": "https://github.com/JaumeHV/simpleDisplay/issues",
   "manifest": "https://github.com/JaumeHV/simpleDisplay/releases/latest/download/module.json",
-  "download": "https://github.com/JaumeHV/simpleDisplay/archive/v0.1.0.zip"
+  "download": "https://github.com/JaumeHV/simpleDisplay/archive/v0.1.1.zip"
 }
