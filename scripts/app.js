@@ -6,7 +6,7 @@ import { TradePanel } from "./panels/TradePanel.js";
 import { Panel6 } from "./panels/Panel6.js";
 import { getActorId } from "./settings.js";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2 } = foundry.applications.api;
 
 const PANEL_REGISTRY = {
   inventory: InventoryPanel,
@@ -28,9 +28,7 @@ const NAV_BUTTONS = [
 
 export const activeDisplays = {};
 
-class DisplayAppBase extends HandlebarsApplicationMixin(ApplicationV2) {}
-
-export class DisplayApp extends DisplayAppBase {
+export class DisplayApp extends ApplicationV2 {
   constructor(displayIndex, options = {}) {
     super({
       id: `simple-display-${displayIndex}`,
@@ -104,19 +102,24 @@ export class DisplayApp extends DisplayAppBase {
     `;
   }
 
-  _onRender(context, options) {
-    const nav = this.element?.querySelector?.(".sd-nav");
-    if (nav) {
-      nav.addEventListener("click", (event) => {
-        const btn = event.target.closest(".sd-nav-btn");
-        if (!btn) return;
-        const panelId = btn.dataset.panel;
-        if (panelId && panelId !== this.activePanel) {
-          this.setPanel(panelId);
-        }
-      });
-    }
+  _replaceHTML(result, content, options) {
+    content.innerHTML = result;
+    this.element = content;
+    this._activateListeners(this.element);
+  }
 
+  _activateListeners(htmlElement) {
+    htmlElement.querySelector(".sd-nav")?.addEventListener("click", (event) => {
+      const btn = event.target.closest(".sd-nav-btn");
+      if (!btn) return;
+      const panelId = btn.dataset.panel;
+      if (panelId && panelId !== this.activePanel) {
+        this.setPanel(panelId);
+      }
+    });
+  }
+
+  _onRender(context, options) {
     const contentEl = this.element?.querySelector?.(`#sd-panel-content-${this.displayIndex}`);
     if (contentEl && context.hasActor) {
       this._renderActivePanel(contentEl);
