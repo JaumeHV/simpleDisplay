@@ -2,7 +2,7 @@
   "id": "simple-display",
   "title": "Simple Display",
   "description": "Player companion display for HVS tabletop setup.",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "Jaume Pirie"
