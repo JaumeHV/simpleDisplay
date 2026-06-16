@@ -137,9 +137,27 @@
 
 .sd-inv-toolbar {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   padding: 0 0 8px;
   flex-shrink: 0;
+}
+
+.sd-inv-sort {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sd-border);
+  border-radius: 4px;
+  color: var(--sd-text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 6px;
+  cursor: pointer;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.sd-inv-sort option {
+  background: var(--sd-bg);
+  color: var(--sd-text);
 }
 
 .sd-inv-search {
@@ -151,6 +169,7 @@
   border: 1px solid var(--sd-border);
   border-radius: 4px;
   padding: 4px 8px;
+  min-width: 0;
 }
 
 .sd-inv-search i {
@@ -167,28 +186,11 @@
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  min-width: 0;
+  min-width: 40px;
 }
 
 .sd-inv-search-input::placeholder {
   color: var(--sd-text-dim);
-}
-
-.sd-inv-sort {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--sd-border);
-  border-radius: 4px;
-  color: var(--sd-text);
-  font-size: 12px;
-  font-family: inherit;
-  padding: 4px 6px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.sd-inv-sort option {
-  background: var(--sd-bg);
-  color: var(--sd-text);
 }
 
 /* ── Currency bar ─────────────────── */

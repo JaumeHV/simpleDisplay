@@ -13,6 +13,7 @@ const TYPE_LABELS = {
 };
 
 const SORT_MODES = [
+  { id: "category", label: "Category" },
   { id: "name", label: "Name" },
   { id: "value", label: "Value" }
 ];
@@ -28,7 +29,7 @@ export class InventoryPanel extends PanelBase {
     this._actor = null;
     this._allItems = [];
     this._searchTerm = "";
-    this._sortMode = "name";
+    this._sortMode = "category";
   }
 
   async render(actor, containerEl) {
@@ -41,13 +42,13 @@ export class InventoryPanel extends PanelBase {
     containerEl.innerHTML = `
       <div class="sd-inv-panel">
         <div class="sd-inv-toolbar">
+          <select class="sd-inv-sort">
+            ${SORT_MODES.map(m => `<option value="${m.id}" ${this._sortMode === m.id ? "selected" : ""}>${escapeHtml(m.label)}</option>`).join("")}
+          </select>
           <div class="sd-inv-search">
             <i class="fas fa-search"></i>
             <input type="text" class="sd-inv-search-input" placeholder="Search..." value="${escapeHtml(this._searchTerm)}" />
           </div>
-          <select class="sd-inv-sort">
-            ${SORT_MODES.map(m => `<option value="${m.id}" ${this._sortMode === m.id ? "selected" : ""}>${escapeHtml(m.label)}</option>`).join("")}
-          </select>
         </div>
 
         <div class="sd-inv-currency">
@@ -89,7 +90,9 @@ export class InventoryPanel extends PanelBase {
       items = items.filter(i => i.name.toLowerCase().includes(term));
     }
 
-    if (this._sortMode === "name") {
+    if (this._sortMode === "category") {
+      items = [...items].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (this._sortMode === "name") {
       items = [...items].sort((a, b) => a.name.localeCompare(b.name));
     } else if (this._sortMode === "value") {
       items = [...items].sort((a, b) => (b.system.price?.value ?? 0) - (a.system.price?.value ?? 0));
@@ -100,7 +103,9 @@ export class InventoryPanel extends PanelBase {
       (groups[item.type] ??= []).push(item);
     }
 
-    const groupKeys = Object.keys(groups);
+    const groupKeys = this._sortMode === "category"
+      ? INVENTORY_TYPES.filter(t => groups[t])
+      : Object.keys(groups);
     let totalItems = 0;
     let totalWeight = 0;
     let groupsHtml = "";
@@ -169,7 +174,7 @@ export class InventoryPanel extends PanelBase {
       btn.addEventListener("click", async () => {
         const item = this._actor?.items.get(btn.dataset.itemId);
         if (!item) return;
-        await item.toMessage();
+        await item.displayCard();
       });
     });
   }
