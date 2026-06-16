@@ -123,10 +123,19 @@ export class DisplayApp extends foundry.applications.api.ApplicationV2 {
     }
   }
 
-  _activateListeners() {
+  _activateListeners(htmlElement) {
+    htmlElement.addEventListener("click", (event) => {
+      const btn = event.target.closest(".sd-nav-btn");
+      if (!btn) return;
+      const panelId = btn.dataset.panel;
+      if (panelId && panelId !== this.activePanel) {
+        this.setPanel(panelId);
+      }
+    });
   }
 
   setPanel(panelId) {
+    console.log("DisplayApp.setPanel", { from: this.activePanel, to: panelId });
     if (!PANEL_REGISTRY[panelId]) return;
     this.activePanel = panelId;
     this.render(true);
