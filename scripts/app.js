@@ -10,7 +10,7 @@ const { ApplicationV2 } = foundry.applications.api;
 const MODULE_ID = "simple-display";
 
 function debug(...args) {
-  if (isDebug()) console.log(`[${MODULE_ID}]`, ...args);
+  console.log(`[${MODULE_ID}]`, ...args);
 }
 
 const PANEL_REGISTRY = {
@@ -125,10 +125,15 @@ export class DisplayApp extends ApplicationV2 {
   }
 
   _onRender(context, options) {
-    debug("_onRender, activePanel:", this.activePanel, "hasActor:", context?.hasActor);
+    debug("_onRender | activePanel:", this.activePanel, "hasActor:", context?.hasActor,
+      "displayIndex:", this.displayIndex, "element tag:", this.element?.tagName);
     const contentEl = this.element?.querySelector?.(`#sd-panel-content-${this.displayIndex}`);
+    debug("_onRender | contentEl found:", !!contentEl);
     if (contentEl && context?.hasActor) {
+      debug("_onRender | calling _renderActivePanel");
       this._renderActivePanel(contentEl);
+    } else {
+      debug("_onRender | skipping _renderActivePanel —", !contentEl ? "no contentEl" : "!hasActor");
     }
   }
 
@@ -144,19 +149,32 @@ export class DisplayApp extends ApplicationV2 {
   }
 
   async _renderActivePanel(containerEl) {
+    debug("_renderActivePanel | start, activePanel:", this.activePanel, "containerEl.id:", containerEl?.id);
+
     if (this._activePanelInstance) {
+      debug("_renderActivePanel | destroying previous instance");
       this._activePanelInstance.destroy();
       this._activePanelInstance = null;
     }
 
     const actor = this.getActor();
-    if (!actor) return;
+    debug("_renderActivePanel | actor:", actor?.name, actor?.id);
+    if (!actor) {
+      debug("_renderActivePanel | no actor, returning");
+      return;
+    }
 
     const PanelClass = PANEL_REGISTRY[this.activePanel];
-    if (!PanelClass) return;
+    debug("_renderActivePanel | PanelClass:", PanelClass?.name, "for key:", this.activePanel);
+    if (!PanelClass) {
+      debug("_renderActivePanel | no PanelClass for", this.activePanel, "— registry keys:", Object.keys(PANEL_REGISTRY));
+      return;
+    }
 
     this._activePanelInstance = new PanelClass(this);
+    debug("_renderActivePanel | created instance of", PanelClass.name);
     await this._activePanelInstance.render(actor, containerEl);
+    debug("_renderActivePanel | render complete");
   }
 
   async close(options) {

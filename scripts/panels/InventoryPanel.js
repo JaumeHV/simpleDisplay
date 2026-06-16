@@ -18,7 +18,9 @@ export class InventoryPanel extends PanelBase {
   static panelIcon = "fas fa-box";
 
   async render(actor, containerEl) {
+    console.log("[simple-display] InventoryPanel.render | actor:", actor?.name, "num items:", actor?.items?.size);
     const items = actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+    console.log("[simple-display] InventoryPanel.render | filtered items:", items.length);
 
     const groups = {};
     for (const item of items) {
