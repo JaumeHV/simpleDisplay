@@ -105,27 +105,31 @@ export class DisplayApp extends foundry.applications.api.ApplicationV2 {
   }
 
   _onRender(context, options) {
+    const nav = this.element?.querySelector?.(".sd-nav");
+    if (nav) {
+      nav.addEventListener("click", (event) => {
+        const btn = event.target.closest(".sd-nav-btn");
+        if (!btn) return;
+        const panelId = btn.dataset.panel;
+        if (panelId && panelId !== this.activePanel) {
+          this.setPanel(panelId);
+        }
+      });
+    }
+
     const contentEl = this.element?.querySelector?.(`#sd-panel-content-${this.displayIndex}`);
     if (contentEl && context.hasActor) {
       this._renderActivePanel(contentEl);
     }
   }
 
-  _activateListeners(htmlElement) {
-    htmlElement.addEventListener("click", (event) => {
-      const btn = event.target.closest(".sd-nav-btn");
-      if (!btn) return;
-      const panelId = btn.dataset.panel;
-      if (panelId && panelId !== this.activePanel) {
-        this.setPanel(panelId);
-      }
-    });
+  _activateListeners() {
   }
 
   setPanel(panelId) {
     if (!PANEL_REGISTRY[panelId]) return;
     this.activePanel = panelId;
-    this.render(false);
+    this.render(true);
   }
 
   async _renderActivePanel(containerEl) {
