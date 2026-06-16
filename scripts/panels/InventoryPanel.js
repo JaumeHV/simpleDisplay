@@ -13,7 +13,6 @@ const TYPE_LABELS = {
 };
 
 const SORT_MODES = [
-  { id: "category", label: "Category" },
   { id: "name", label: "Name" },
   { id: "value", label: "Value" }
 ];
@@ -29,7 +28,7 @@ export class InventoryPanel extends PanelBase {
     this._actor = null;
     this._allItems = [];
     this._searchTerm = "";
-    this._sortMode = "category";
+    this._sortMode = "name";
   }
 
   async render(actor, containerEl) {
@@ -90,29 +89,25 @@ export class InventoryPanel extends PanelBase {
       items = items.filter(i => i.name.toLowerCase().includes(term));
     }
 
-    if (this._sortMode === "category") {
-      items = [...items].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (this._sortMode === "name") {
-      items = [...items].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (this._sortMode === "value") {
-      items = [...items].sort((a, b) => (b.system.price?.value ?? 0) - (a.system.price?.value ?? 0));
-    }
-
     const groups = {};
     for (const item of items) {
       (groups[item.type] ??= []).push(item);
     }
 
-    const groupKeys = this._sortMode === "category"
-      ? INVENTORY_TYPES.filter(t => groups[t])
-      : Object.keys(groups);
+    const groupKeys = INVENTORY_TYPES.filter(t => groups[t]);
     let totalItems = 0;
     let totalWeight = 0;
     let groupsHtml = "";
 
     for (const type of groupKeys) {
-      const typeItems = groups[type];
+      let typeItems = groups[type];
       const label = TYPE_LABELS[type] ?? type;
+
+      if (this._sortMode === "name") {
+        typeItems = [...typeItems].sort((a, b) => a.name.localeCompare(b.name));
+      } else if (this._sortMode === "value") {
+        typeItems = [...typeItems].sort((a, b) => (b.system.price?.value ?? 0) - (a.system.price?.value ?? 0));
+      }
 
       let itemsHtml = "";
       for (const item of typeItems) {
