@@ -121,7 +121,6 @@ export class DisplayApp extends ApplicationV2 {
 
   _replaceHTML(result, content, options) {
     content.innerHTML = result;
-    this.element = content;
   }
 
   _onRender(context, options) {
