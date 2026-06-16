@@ -11,8 +11,21 @@ export function registerSettings() {
       default: ""
     });
   }
+
+  game.settings.register(MODULE_ID, "debugMode", {
+    name: "Debug Mode",
+    hint: "Enable verbose console logging for debugging button clicks and rendering lifecycle.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false
+  });
 }
 
 export function getActorId(displayIndex) {
   return game.settings.get(MODULE_ID, `player${displayIndex}ActorId`);
+}
+
+export function isDebug() {
+  return game.settings.get(MODULE_ID, "debugMode") === true;
 }
