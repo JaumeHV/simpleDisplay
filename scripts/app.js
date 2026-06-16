@@ -100,6 +100,10 @@ export class DisplayApp extends foundry.applications.api.ApplicationV2 {
     `;
   }
 
+  _replaceHTML(result, options) {
+    this.element.innerHTML = result ?? "";
+  }
+
   _onRender(context, options) {
     const contentEl = this.element?.querySelector?.(`#sd-panel-content-${this.displayIndex}`);
     if (contentEl && context.hasActor) {
