@@ -57,22 +57,16 @@ export class DisplayApp extends ApplicationV2 {
     position: {
       width: 1280,
       height: 800
-    },
-    actions: {
-      setPanel: DisplayApp.#onSetPanel
     }
   };
 
-  /**
-   * Action handler for nav button clicks. Bound by ApplicationV2 to the
-   * instance; `target` is the element carrying `data-action="setPanel"`.
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static #onSetPanel(event, target) {
-    const panelId = target.dataset.panel;
-    debug("setPanel action fired ->", panelId);
-    this.setPanel(panelId);
+  _onClickAction(event, target) {
+    const action = target.dataset.action;
+    if ( action === "setPanel" ) {
+      const panelId = target.dataset.panel;
+      debug("_onClickAction: setPanel ->", panelId);
+      if ( panelId ) this.setPanel(panelId);
+    }
   }
 
   getActor() {
