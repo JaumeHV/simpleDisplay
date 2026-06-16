@@ -65,6 +65,9 @@ export class InventoryPanel extends PanelBase {
             <i class="fas fa-search"></i>
             <input type="text" class="sd-inv-search-input" placeholder="Search..." value="${escapeHtml(this._searchTerm)}" />
           </div>
+          <button type="button" class="sd-inv-trade-btn" title="Open trade window">
+            <i class="fas fa-handshake"></i>
+          </button>
         </div>
 
         <div class="sd-inv-currency" id="sd-inv-currency">
@@ -92,6 +95,10 @@ export class InventoryPanel extends PanelBase {
     containerEl.querySelector(".sd-inv-sort")?.addEventListener("change", (e) => {
       this._sortMode = e.target.value;
       this._renderItems();
+    });
+
+    containerEl.querySelector(".sd-inv-trade-btn")?.addEventListener("click", () => {
+      ui.notifications.info("Trade window — placeholder");
     });
 
     containerEl.querySelector("#sd-inv-currency")?.addEventListener("click", (e) => {

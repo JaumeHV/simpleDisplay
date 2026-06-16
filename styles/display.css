@@ -193,6 +193,26 @@
   color: var(--sd-text-dim);
 }
 
+.sd-inv-trade-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sd-border);
+  border-radius: 4px;
+  color: var(--sd-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.sd-inv-trade-btn:hover {
+  background: rgba(106, 168, 255, 0.1);
+  border-color: var(--sd-accent);
+  color: var(--sd-accent);
+}
+
 /* ── Currency bar ─────────────────── */
 
 .sd-inv-currency {

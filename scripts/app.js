@@ -2,8 +2,8 @@ import { InventoryPanel } from "./panels/InventoryPanel.js";
 import { ChatPanel } from "./panels/ChatPanel.js";
 import { SpellsPanel } from "./panels/SpellsPanel.js";
 import { TacMapPanel } from "./panels/TacMapPanel.js";
-import { TradePanel } from "./panels/TradePanel.js";
-import { Panel6 } from "./panels/Panel6.js";
+import { EffectsPanel } from "./panels/EffectsPanel.js";
+import { FeaturesPanel } from "./panels/FeaturesPanel.js";
 import { getActorId, isDebug } from "./settings.js";
 
 const { ApplicationV2 } = foundry.applications.api;
@@ -18,8 +18,8 @@ const PANEL_REGISTRY = {
   chat: ChatPanel,
   spells: SpellsPanel,
   tacmap: TacMapPanel,
-  trade: TradePanel,
-  panel6: Panel6
+  effects: EffectsPanel,
+  features: FeaturesPanel
 };
 
 const NAV_BUTTONS = [
@@ -27,8 +27,8 @@ const NAV_BUTTONS = [
   { id: "chat", label: "Chat", icon: "fas fa-comment-dots" },
   { id: "spells", label: "Spells", icon: "fas fa-hat-wizard" },
   { id: "tacmap", label: "TacMap", icon: "fas fa-map-marked-alt" },
-  { id: "trade", label: "Trade", icon: "fas fa-handshake" },
-  { id: "panel6", label: "6", icon: "fas fa-ellipsis-h" }
+  { id: "effects", label: "Effects", icon: "fas fa-magic" },
+  { id: "features", label: "Features", icon: "fas fa-star" }
 ];
 
 export const activeDisplays = {};
