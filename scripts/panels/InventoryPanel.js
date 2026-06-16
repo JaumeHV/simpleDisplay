@@ -17,6 +17,23 @@ const SORT_MODES = [
   { id: "value", label: "Value" }
 ];
 
+const RARITY_COLORS = {
+  common: "#8a8a8a",
+  uncommon: "#4ade80",
+  rare: "#6aa8ff",
+  veryRare: "#a855f7",
+  legendary: "#fb923c",
+  artifact: "#fbbf24"
+};
+
+const CURRENCY_META = [
+  { key: "pp", label: "PP", color: "#e8e8e8" },
+  { key: "gp", label: "GP", color: "#ffd700" },
+  { key: "ep", label: "EP", color: "#4ade80" },
+  { key: "sp", label: "SP", color: "#c0c0c0" },
+  { key: "cp", label: "CP", color: "#b87333" }
+];
+
 export class InventoryPanel extends PanelBase {
   static panelId = "inventory";
   static panelLabel = "Inventory";
@@ -29,14 +46,14 @@ export class InventoryPanel extends PanelBase {
     this._allItems = [];
     this._searchTerm = "";
     this._sortMode = "name";
+    this._collapsedTypes = new Set();
+    this._activeTypes = new Set(INVENTORY_TYPES);
   }
 
   async render(actor, containerEl) {
     this._containerEl = containerEl;
     this._actor = actor;
     this._allItems = actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
-
-    const currency = actor.system.currency ?? {};
 
     containerEl.innerHTML = `
       <div class="sd-inv-panel">
@@ -50,12 +67,12 @@ export class InventoryPanel extends PanelBase {
           </div>
         </div>
 
-        <div class="sd-inv-currency">
-          <span class="sd-inv-currency-item"><i class="fas fa-coins"></i> ${currency.pp ?? 0} PP</span>
-          <span class="sd-inv-currency-item">${currency.gp ?? 0} GP</span>
-          <span class="sd-inv-currency-item">${currency.ep ?? 0} EP</span>
-          <span class="sd-inv-currency-item">${currency.sp ?? 0} SP</span>
-          <span class="sd-inv-currency-item">${currency.cp ?? 0} CP</span>
+        <div class="sd-inv-currency" id="sd-inv-currency">
+          ${this._renderCurrency()}
+        </div>
+
+        <div class="sd-inv-type-filters" id="sd-inv-type-filters">
+          ${INVENTORY_TYPES.map(t => `<button class="sd-inv-type-pill ${this._activeTypes.has(t) ? "active" : ""}" data-type="${t}">${escapeHtml(TYPE_LABELS[t])}</button>`).join("")}
         </div>
 
         <div class="sd-inv-scroll" id="sd-inv-scroll"></div>
@@ -64,6 +81,7 @@ export class InventoryPanel extends PanelBase {
       </div>
     `;
 
+    const scrollEl = containerEl.querySelector("#sd-inv-scroll");
     this._renderItems();
 
     containerEl.querySelector(".sd-inv-search-input")?.addEventListener("input", (e) => {
@@ -75,12 +93,104 @@ export class InventoryPanel extends PanelBase {
       this._sortMode = e.target.value;
       this._renderItems();
     });
+
+    containerEl.querySelector("#sd-inv-currency")?.addEventListener("click", (e) => {
+      const currSpan = e.target.closest(".sd-inv-currency-item");
+      if (!currSpan || currSpan.querySelector("input")) return;
+      const key = currSpan.dataset.curr;
+      if (!key) return;
+      this._startEditCurrency(key, currSpan);
+    });
+
+    containerEl.querySelector("#sd-inv-type-filters")?.addEventListener("click", (e) => {
+      const pill = e.target.closest(".sd-inv-type-pill");
+      if (!pill) return;
+      const type = pill.dataset.type;
+      if (!this._activeTypes.delete(type)) this._activeTypes.add(type);
+      this._renderItems();
+    });
+
+    if (scrollEl && !scrollEl._sdListener) {
+      scrollEl._sdListener = true;
+      scrollEl.addEventListener("click", async (e) => {
+        const btn = e.target.closest("button");
+        const header = e.target.closest(".sd-inv-group-header");
+        if (btn) {
+          const itemId = btn.dataset.itemId;
+          if (!itemId) return;
+          const item = this._actor?.items.get(itemId);
+          if (!item) return;
+
+          if (btn.classList.contains("sd-inv-item-equip")) {
+            await item.update({ "system.equipped": !item.system.equipped });
+            this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+            this._renderItems();
+          } else if (btn.classList.contains("sd-inv-item-chat")) {
+            await item.displayCard();
+          } else if (btn.classList.contains("sd-inv-item-use")) {
+            try { await item.use({ legacy: false }); } catch(e) { /* silently fail */ }
+          }
+        } else if (header) {
+          const type = header.dataset.type;
+          if (!type) return;
+          const group = header.closest(".sd-inv-group");
+          if (this._collapsedTypes.has(type)) {
+            this._collapsedTypes.delete(type);
+            group?.classList.remove("collapsed");
+          } else {
+            this._collapsedTypes.add(type);
+            group?.classList.add("collapsed");
+          }
+        }
+      });
+    }
+  }
+
+  _renderCurrency() {
+    const currency = this._actor?.system?.currency ?? {};
+    return CURRENCY_META.map(({ key, label, color }) =>
+      `<span class="sd-inv-currency-item" data-curr="${key}">
+        <i class="fas fa-coins" style="color:${color}"></i> ${currency[key] ?? 0} ${label}
+      </span>`
+    ).join("");
+  }
+
+  _startEditCurrency(key, spanEl) {
+    const currentValue = this._actor?.system?.currency?.[key] ?? 0;
+    const meta = CURRENCY_META.find(c => c.key === key);
+    spanEl.innerHTML = `<i class="fas fa-coins" style="color:${meta?.color}"></i>
+      <input type="number" class="sd-curr-edit" value="${currentValue}" step="1" min="0" />`;
+    const input = spanEl.querySelector("input");
+    if (!input) return;
+    input.focus();
+    input.select();
+
+    const finish = async (save) => {
+      if (save) {
+        const newVal = parseInt(input.value) || 0;
+        try { await this._actor?.update({ [`system.currency.${key}`]: newVal }); }
+        catch(e) { /* silently fail */ }
+      }
+      const currBar = this._containerEl?.querySelector("#sd-inv-currency");
+      if (currBar) currBar.innerHTML = this._renderCurrency();
+    };
+
+    input.addEventListener("blur", () => finish(true));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    });
   }
 
   _renderItems() {
     const scrollEl = this._containerEl?.querySelector("#sd-inv-scroll");
     const footerEl = this._containerEl?.querySelector("#sd-inv-footer");
-    if (!scrollEl || !footerEl) return;
+    const filterEl = this._containerEl?.querySelector("#sd-inv-type-filters");
+    if (!scrollEl || !footerEl || !filterEl) return;
+
+    filterEl.querySelectorAll(".sd-inv-type-pill").forEach(pill => {
+      pill.classList.toggle("active", this._activeTypes.has(pill.dataset.type));
+    });
 
     let items = this._allItems;
 
@@ -94,7 +204,7 @@ export class InventoryPanel extends PanelBase {
       (groups[item.type] ??= []).push(item);
     }
 
-    const groupKeys = INVENTORY_TYPES.filter(t => groups[t]);
+    const groupKeys = INVENTORY_TYPES.filter(t => groups[t] && this._activeTypes.has(t));
     let totalItems = 0;
     let totalWeight = 0;
     let groupsHtml = "";
@@ -121,13 +231,44 @@ export class InventoryPanel extends PanelBase {
         const value = item.system.price?.value ?? 0;
         const denom = item.system.price?.denomination ?? "gp";
         const canEquip = "equipped" in (item.system ?? {});
+        const rarity = item.system.rarity;
+        const rarityColor = RARITY_COLORS[rarity] ?? null;
 
-        itemsHtml += `<div class="sd-inv-item">
-          <img class="sd-inv-item-icon" src="${icon}" alt="${name}" loading="lazy" />
+        // Attunement
+        const attunement = item.system.attunement;
+        const attuned = item.system.attuned;
+        let attIcon = "";
+        if (attuned) {
+          attIcon = `<i class="fas fa-sun" style="color:#ffd700" title="Attuned"></i>`;
+        } else if (attunement === "required") {
+          attIcon = `<i class="fas fa-sun" style="color:#fb923c;opacity:0.6" title="Requires Attunement"></i>`;
+        } else if (attunement === "optional") {
+          attIcon = `<i class="fas fa-sun" style="color:#6aa8ff;opacity:0.5" title="Optional Attunement"></i>`;
+        }
+
+        // Use button for items with activation or activities
+        const hasActivation = item.system.activation?.type;
+        const hasActivities = item.system.activities?.length > 0;
+        const showUse = type === "consumable" || hasActivation || hasActivities;
+
+        // Tooltip description
+        const desc = item.system.description?.value ?? "";
+        const plainDesc = desc.replace(/<[^>]*>/g, "").trim();
+        const tooltip = plainDesc
+          ? escapeHtml(plainDesc.substring(0, 200) + (plainDesc.length > 200 ? "…" : ""))
+          : null;
+
+        // Rarity border on icon
+        const rarityStyle = rarityColor ? `style="border-color:${rarityColor}"` : "";
+
+        itemsHtml += `<div class="sd-inv-item"${tooltip ? ` title="${tooltip}"` : ""}>
+          <img class="sd-inv-item-icon" src="${icon}" alt="${name}" loading="lazy" ${rarityStyle} />
           <span class="sd-inv-item-name">${name}</span>
           <span class="sd-inv-item-qty">×${qty}</span>
           <span class="sd-inv-item-weight">${weight > 0 ? weight.toFixed(1) : "—"}</span>
           <span class="sd-inv-item-value">${value > 0 ? `${value} ${denom}` : ""}</span>
+          ${attIcon ? `<span class="sd-inv-item-att">${attIcon}</span>` : ""}
+          ${showUse ? `<button class="sd-inv-item-use" data-item-id="${item.id}" title="Use item"><i class="fas fa-bolt"></i></button>` : ""}
           ${canEquip ? `<button class="sd-inv-item-equip" data-item-id="${item.id}" title="${item.system.equipped ? "Unequip" : "Equip"}">
             <i class="fas ${item.system.equipped ? "fa-check-circle" : "fa-circle"}"></i>
           </button>` : ""}
@@ -137,8 +278,9 @@ export class InventoryPanel extends PanelBase {
         </div>`;
       }
 
-      groupsHtml += `<div class="sd-inv-group">
-        <div class="sd-inv-group-header">${escapeHtml(label)} <span class="sd-inv-group-count">(${typeItems.length})</span></div>
+      const collapsed = this._collapsedTypes.has(type);
+      groupsHtml += `<div class="sd-inv-group${collapsed ? " collapsed" : ""}">
+        <div class="sd-inv-group-header" data-type="${type}">${escapeHtml(label)} <span class="sd-inv-group-count">(${typeItems.length})</span></div>
         ${itemsHtml}
       </div>`;
     }
@@ -155,22 +297,5 @@ export class InventoryPanel extends PanelBase {
       <span>${totalWeight.toFixed(1)} / ${maxWeight} lb</span>
     `;
 
-    scrollEl.querySelectorAll(".sd-inv-item-equip").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const item = this._actor?.items.get(btn.dataset.itemId);
-        if (!item) return;
-        await item.update({ "system.equipped": !item.system.equipped });
-        this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
-        this._renderItems();
-      });
-    });
-
-    scrollEl.querySelectorAll(".sd-inv-item-chat").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const item = this._actor?.items.get(btn.dataset.itemId);
-        if (!item) return;
-        await item.displayCard();
-      });
-    });
   }
 }

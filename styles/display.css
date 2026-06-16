@@ -209,11 +209,68 @@
 
 .sd-inv-currency-item {
   white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+.sd-inv-currency-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .sd-inv-currency-item i {
   margin-right: 3px;
-  color: #e6b800;
+}
+
+.sd-curr-edit {
+  width: 60px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--sd-accent);
+  border-radius: 3px;
+  color: var(--sd-text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 1px 4px;
+  outline: none;
+}
+
+.sd-curr-edit:focus {
+  border-color: #fff;
+}
+
+/* ── Type filter pills ───────────────── */
+
+.sd-inv-type-filters {
+  display: flex;
+  gap: 4px;
+  padding: 0 0 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.sd-inv-type-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sd-border);
+  border-radius: 10px;
+  color: var(--sd-text-dim);
+  font-size: 10px;
+  font-family: inherit;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sd-inv-type-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sd-text);
+}
+
+.sd-inv-type-pill.active {
+  background: rgba(106, 168, 255, 0.12);
+  border-color: var(--sd-accent);
+  color: var(--sd-accent);
 }
 
 /* ── Scrollable item area ──────────── */
@@ -261,6 +318,30 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.sd-inv-group-header:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sd-inv-group-header::before {
+  content: "▼";
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 9px;
+  transition: transform 0.2s;
+  color: var(--sd-text-dim);
+}
+
+.sd-inv-group.collapsed .sd-inv-group-header::before {
+  transform: rotate(-90deg);
+}
+
+.sd-inv-group.collapsed .sd-inv-item {
+  display: none;
 }
 
 .sd-inv-group-count {
@@ -295,6 +376,7 @@
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s;
 }
 
 .sd-inv-item-name {
@@ -331,6 +413,16 @@
   flex-shrink: 0;
 }
 
+.sd-inv-item-att {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  width: 16px;
+  justify-content: center;
+}
+
+.sd-inv-item-use,
 .sd-inv-item-equip,
 .sd-inv-item-chat {
   background: transparent;
@@ -341,6 +433,16 @@
   font-size: 13px;
   transition: color 0.15s;
   flex-shrink: 0;
+}
+
+.sd-inv-item-use {
+  color: #fb923c;
+  opacity: 0.6;
+}
+
+.sd-inv-item-use:hover {
+  opacity: 1;
+  color: #fb923c;
 }
 
 .sd-inv-item-equip:hover {
