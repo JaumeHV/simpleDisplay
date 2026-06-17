@@ -60,6 +60,7 @@ export class InventoryPanel extends PanelBase {
     this._activeContainerId = "main";
     this._favoritesOnly = false;
     this._popupItemId = null;
+    this._keyboardEl = null;
   }
 
   async render(actor, containerEl) {
@@ -137,9 +138,8 @@ export class InventoryPanel extends PanelBase {
       this._renderItems();
     });
 
-    // Popup backdrop click
     containerEl.querySelector(".sd-inv-panel")?.addEventListener("pointerdown", (e) => {
-      if (this._popupItemId && !e.target.closest(".sd-inv-popup") && !e.target.closest(".sd-inv-popup-backdrop")) {
+      if (this._popupItemId && !e.target.closest(".sd-inv-popup")) {
         this._closePopup();
       }
     });
@@ -149,6 +149,7 @@ export class InventoryPanel extends PanelBase {
       scrollEl.addEventListener("click", (e) => {
         const header = e.target.closest(".sd-inv-group-header");
         const btn = e.target.closest("button");
+        const qtySpan = e.target.closest("[data-qty-edit]");
         const itemRow = e.target.closest(".sd-inv-item");
 
         if (header) {
@@ -157,6 +158,11 @@ export class InventoryPanel extends PanelBase {
           const group = header.closest(".sd-inv-group");
           this._collapsedTypes.has(type) ? this._collapsedTypes.delete(type) : this._collapsedTypes.add(type);
           group?.classList.toggle("collapsed");
+          return;
+        }
+
+        if (qtySpan) {
+          this._startEditQuantity(qtySpan.dataset.itemId);
           return;
         }
 
@@ -190,7 +196,6 @@ export class InventoryPanel extends PanelBase {
         }
       });
 
-      // Drag and drop on scroll area
       scrollEl.addEventListener("dragstart", (e) => {
         const row = e.target.closest(".sd-inv-item");
         if (row) {
@@ -207,11 +212,7 @@ export class InventoryPanel extends PanelBase {
 
       scrollEl.addEventListener("dragover", (e) => {
         const target = e.target.closest("[data-drop-container]");
-        if (target) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          target.classList.add("drag-over");
-        }
+        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; target.classList.add("drag-over"); }
       });
 
       scrollEl.addEventListener("dragleave", (e) => {
@@ -230,7 +231,6 @@ export class InventoryPanel extends PanelBase {
         this._moveItemToContainer(itemId, targetId);
       });
     }
-
   }
 
   _moveItemToContainer(itemId, containerId) {
@@ -255,12 +255,14 @@ export class InventoryPanel extends PanelBase {
   }
 
   _startEditCurrency(key, spanEl) {
+    this._hideKeyboard();
     const currentValue = this._actor?.system?.currency?.[key] ?? 0;
     const meta = CURRENCY_META.find(c => c.key === key);
     spanEl.innerHTML = `<i class="fas fa-coins" style="color:${meta?.color}"></i>
       <input type="number" class="sd-curr-edit" value="${currentValue}" step="1" min="0" />`;
     const input = spanEl.querySelector("input");
     if (!input) return;
+    this._showNumpad(input);
     input.focus();
     input.select();
     const finish = async (save) => {
@@ -268,6 +270,7 @@ export class InventoryPanel extends PanelBase {
         const newVal = parseInt(input.value) || 0;
         try { await this._actor?.update({ [`system.currency.${key}`]: newVal }); } catch(e) {}
       }
+      this._hideKeyboard();
       const currBar = this._containerEl?.querySelector("#sd-inv-currency");
       if (currBar) currBar.innerHTML = this._renderCurrency();
     };
@@ -276,6 +279,131 @@ export class InventoryPanel extends PanelBase {
       if (e.key === "Enter") { e.preventDefault(); input.blur(); }
       if (e.key === "Escape") { e.preventDefault(); finish(false); }
     });
+  }
+
+  _startEditQuantity(itemId) {
+    const item = this._actor?.items.get(itemId);
+    if (!item) return;
+    const scrollEl = this._containerEl?.querySelector("#sd-inv-scroll");
+    if (!scrollEl) return;
+    const itemRow = scrollEl.querySelector(`.sd-inv-item[data-item-id="${itemId}"]`);
+    if (!itemRow) return;
+    const qtySpan = itemRow.querySelector("[data-qty-edit]");
+    if (!qtySpan) return;
+    const currentQty = item.system.quantity ?? 1;
+    qtySpan.innerHTML = `<input type="number" class="sd-qty-edit" value="${currentQty}" min="0" step="1" />`;
+    const input = qtySpan.querySelector("input");
+    if (!input) return;
+    this._showNumpad(input);
+    input.focus();
+    input.select();
+    const finish = async (save) => {
+      this._hideKeyboard();
+      if (save) {
+        const newVal = parseInt(input.value);
+        if (isNaN(newVal) || newVal === currentQty) {
+          this._renderItems();
+          return;
+        }
+        if (newVal <= 0) {
+          const confirmed = await this._confirmRemove(item.name);
+          if (confirmed) {
+            await item.delete();
+          } else {
+            await item.update({ "system.quantity": 0 });
+          }
+        } else {
+          await item.update({ "system.quantity": newVal });
+        }
+      }
+      this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+      this._renderItems();
+    };
+    input.addEventListener("blur", () => finish(true));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    });
+  }
+
+  _confirmRemove(itemName) {
+    return new Promise((resolve) => {
+      const panel = this._containerEl?.querySelector(".sd-inv-panel");
+      if (!panel) { resolve(false); return; }
+      const overlay = document.createElement("div");
+      overlay.className = "sd-confirm-overlay";
+      overlay.innerHTML = `<div class="sd-confirm-dialog">
+        <p>Remove <strong>${escapeHtml(itemName)}</strong> from inventory?</p>
+        <div class="sd-confirm-actions">
+          <button type="button" class="sd-confirm-yes">Remove</button>
+          <button type="button" class="sd-confirm-no">Keep (0 qty)</button>
+        </div>
+      </div>`;
+      overlay.querySelector(".sd-confirm-yes")?.addEventListener("click", () => {
+        overlay.remove(); resolve(true);
+      });
+      overlay.querySelector(".sd-confirm-no")?.addEventListener("click", () => {
+        overlay.remove(); resolve(false);
+      });
+      panel.appendChild(overlay);
+    });
+  }
+
+  _hideKeyboard() {
+    if (this._keyboardEl) {
+      this._keyboardEl.remove();
+      this._keyboardEl = null;
+    }
+  }
+
+  _showNumpad(inputEl) {
+    this._hideKeyboard();
+    const panel = this._containerEl?.querySelector(".sd-inv-panel");
+    if (!panel) return;
+    const kbd = document.createElement("div");
+    kbd.className = "sd-kbd";
+    const isFloat = inputEl.getAttribute("step")?.includes(".");
+    const layout = [
+      ["1","2","3"],
+      ["4","5","6"],
+      ["7","8","9"],
+      [isFloat ? "." : "⌫","0","✓"]
+    ];
+    for (const row of layout) {
+      const r = document.createElement("div");
+      r.className = "sd-kbd-row";
+      for (const key of row) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = key === "⌫" ? "⌫" : key === "✓" ? "OK" : key;
+        btn.className = "sd-kbd-btn" + (key === "✓" ? " sd-kbd-confirm" : "") + (key === "⌫" ? " sd-kbd-bksp" : "");
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (key === "✓") {
+            inputEl.blur();
+          } else if (key === "⌫") {
+            inputEl.value = inputEl.value.slice(0, -1);
+            inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+          } else if (key === "." && !isFloat) {
+            // ignore decimal when not a float field
+          } else {
+            const selStart = inputEl.selectionStart ?? inputEl.value.length;
+            const selEnd = inputEl.selectionEnd ?? inputEl.value.length;
+            const before = inputEl.value.slice(0, selStart);
+            const after = inputEl.value.slice(selEnd);
+            if (key === "." && before.includes(".")) return;
+            inputEl.value = before + key + after;
+            const newPos = selStart + key.length;
+            inputEl.setSelectionRange(newPos, newPos);
+            inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        });
+        r.appendChild(btn);
+      }
+      kbd.appendChild(r);
+    }
+    panel.appendChild(kbd);
+    this._keyboardEl = kbd;
   }
 
   _getContainerItems(containerId) {
@@ -307,7 +435,6 @@ export class InventoryPanel extends PanelBase {
     const headerBar = document.getElementById(`sd-header-bar-${this.display.displayIndex}`);
     if (!headerBar) return;
     headerBar.innerHTML = this._renderContainerBar();
-
     if (!headerBar._sdEventsAdded) {
       headerBar._sdEventsAdded = true;
       headerBar.addEventListener("click", (e) => {
@@ -343,11 +470,10 @@ export class InventoryPanel extends PanelBase {
 
   _renderContainerBar() {
     let html = `<button class="sd-inv-container-btn ${this._activeContainerId === "main" ? "active" : ""}" data-container-id="main" data-drop-container="true" title="Main Inventory">
-      <i class="fas fa-box" style="font-size:24px;color:var(--sd-text-muted)"></i>
+      <i class="fas fa-box" style="font-size:28px;color:var(--sd-text-muted)"></i>
       <span class="sd-inv-container-label">Main</span>
       ${this._weightBarHtml("main")}
     </button>`;
-
     for (const container of this._containers) {
       const active = this._activeContainerId === container.id;
       const name = escapeHtml(container.name);
@@ -374,9 +500,8 @@ export class InventoryPanel extends PanelBase {
   _toggleFavorite(itemId) {
     const item = this._actor?.items.get(itemId);
     if (!item) return;
-    const key = "favorite";
-    const current = item.getFlag("simple-display", key);
-    item.setFlag("simple-display", key, !current).then(() => this._renderItems());
+    const current = item.getFlag("simple-display", "favorite");
+    item.setFlag("simple-display", "favorite", !current).then(() => this._renderItems());
   }
 
   _isFavorite(item) {
@@ -386,8 +511,6 @@ export class InventoryPanel extends PanelBase {
   _closePopup() {
     const panel = this._containerEl?.querySelector(".sd-inv-panel");
     if (panel) {
-      const existing = panel.querySelector(".sd-inv-popup-backdrop");
-      if (existing) existing.remove();
       const popup = panel.querySelector(".sd-inv-popup");
       if (popup) popup.remove();
     }
@@ -429,16 +552,14 @@ export class InventoryPanel extends PanelBase {
     popup.querySelector(".sd-inv-popup-close")?.addEventListener("click", () => this._closePopup());
     panel.appendChild(popup);
 
-    // Position popup
     const scrollEl = panel.querySelector("#sd-inv-scroll");
     if (scrollEl) {
       const scrollRect = scrollEl.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
       const offsetTop = scrollRect.top - panelRect.top + 10;
-      const offsetLeft = 10;
       popup.style.position = "absolute";
       popup.style.top = Math.min(offsetTop, panel.clientHeight - 420) + "px";
-      popup.style.left = offsetLeft + "px";
+      popup.style.left = "10px";
       popup.style.maxWidth = Math.min(320, panel.clientWidth - 20) + "px";
     }
   }
@@ -457,15 +578,16 @@ export class InventoryPanel extends PanelBase {
       }
     });
 
-    let items = this._getContainerItems(this._activeContainerId);
+    let items;
+    if (this._favoritesOnly) {
+      items = this._allItems.filter(i => this._isFavorite(i));
+    } else {
+      items = this._getContainerItems(this._activeContainerId);
+    }
 
     if (this._searchTerm) {
       const term = this._searchTerm.toLowerCase();
       items = items.filter(i => i.name.toLowerCase().includes(term));
-    }
-
-    if (this._favoritesOnly) {
-      items = items.filter(i => this._isFavorite(i));
     }
 
     const groups = {};
@@ -539,7 +661,7 @@ export class InventoryPanel extends PanelBase {
             <img class="sd-inv-item-icon${rarityCls}" src="${icon}" alt="${name}" loading="lazy" />
           </span>
           <span class="sd-inv-item-name">${name}</span>
-          <span class="sd-inv-item-qty">×${qty}</span>
+          <span class="sd-inv-item-qty" data-qty-edit="${item.id}" title="Tap to edit quantity">×${qty}</span>
           <span class="sd-inv-item-weight">${weight > 0 ? fmtWeight(weight) : "—"}</span>
           <span class="sd-inv-item-value">${value > 0 ? `${value} ${denom}` : ""}</span>
           ${attIcon ? `<span class="sd-inv-item-att">${attIcon}</span>` : `<span class="sd-inv-item-att"></span>`}
