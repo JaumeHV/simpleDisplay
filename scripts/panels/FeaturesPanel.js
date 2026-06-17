@@ -198,7 +198,9 @@ export class FeaturesPanel extends PanelBase {
     if (activation || (uses?.max > 0)) {
       detailsHtml = '<div class="sd-feat-popup-details">';
       if (activation) {
-        const actLabel = game.i18n?.localize(CONFIG?.DND5E?.abilityActivationTypes?.[activation] ?? activation) ?? activation;
+        const actEntry = CONFIG?.DND5E?.abilityActivationTypes?.[activation];
+        const actKey = typeof actEntry === "string" ? actEntry : actEntry?.label ?? activation;
+        const actLabel = game.i18n?.localize(actKey) ?? activation;
         detailsHtml += `<div><strong>Activation:</strong> ${actLabel}</div>`;
       }
       if (uses?.max > 0) {

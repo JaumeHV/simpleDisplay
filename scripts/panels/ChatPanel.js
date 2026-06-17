@@ -92,11 +92,16 @@ export class ChatPanel extends PanelBase {
     </div>`;
   }
 
+  _getTypes() {
+    return CONST?.CHAT_MESSAGE_TYPES ?? { IC: 2, OOC: 1, ROLL: 3, COMBAT: 5 };
+  }
+
   _matchesFilter(msg) {
+    const T = this._getTypes();
     switch (this._filter) {
-      case "chat": return msg.type === CONST.CHAT_MESSAGE_TYPES.OOC || msg.type === CONST.CHAT_MESSAGE_TYPES.IC;
-      case "roll": return msg.type === CONST.CHAT_MESSAGE_TYPES.ROLL;
-      case "combat": return msg.type === CONST.CHAT_MESSAGE_TYPES.COMBAT;
+      case "chat": return msg.type === T.OOC || msg.type === T.IC;
+      case "roll": return msg.type === T.ROLL;
+      case "combat": return msg.type === T.COMBAT;
       case "whisper": return msg.isWhisper;
       default: return true;
     }
@@ -106,9 +111,10 @@ export class ChatPanel extends PanelBase {
     const alias = escapeHtml(msg.alias || msg.speaker?.alias || msg.author?.name || "Unknown");
     const content = msg.content ?? "";
     const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-    const isRoll = msg.type === CONST.CHAT_MESSAGE_TYPES.ROLL;
+    const T = this._getTypes();
+    const isRoll = msg.type === T.ROLL;
     const isWhisper = msg.isWhisper;
-    const isEmote = msg.type === CONST.CHAT_MESSAGE_TYPES.IC;
+    const isEmote = msg.type === T.IC;
 
     const speakerEl = msg.speaker?.actor
       ? this._actor?.id === msg.speaker.actor ? "sd-chat-msg-self" : ""
