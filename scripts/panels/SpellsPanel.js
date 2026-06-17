@@ -103,8 +103,8 @@ export class SpellsPanel extends PanelBase {
           if (btn.classList.contains("sd-spell-cast")) {
             try { spell.use({ legacy: false }); } catch(e) {}
           } else if (btn.classList.contains("sd-spell-prep")) {
-            const prepared = !(spell.system.preparation?.prepared ?? false);
-            spell.update({ "system.preparation.prepared": prepared }).then(() => {
+            const prepared = !(spell.system.prepared ?? spell.system.preparation?.prepared ?? false);
+            spell.update({ "system.prepared": prepared }).then(() => {
               this._allSpells = this._actor.items.filter(i => i.type === "spell");
               this._renderSpells();
             });
@@ -206,8 +206,8 @@ export class SpellsPanel extends PanelBase {
         const actEntry = CONFIG?.DND5E?.abilityActivationTypes?.[activation];
         const actKey = typeof actEntry === "string" ? actEntry : actEntry?.label ?? activation;
         const activLabel = activation ? (game.i18n?.localize(actKey) ?? activation) : "";
-        const prepMode = spell.system.preparation?.mode ?? "";
-        const isPrepared = spell.system.preparation?.prepared ?? false;
+        const prepMode = spell.system.method ?? spell.system.preparation?.mode ?? "";
+        const isPrepared = spell.system.prepared ?? spell.system.preparation?.prepared ?? false;
         const showPrep = prepMode === "prepared" || prepMode === "pact";
         const components = [];
         if (spell.system.components?.v) components.push("V");
