@@ -63,7 +63,7 @@ export class ChatPanel extends PanelBase {
       scrollEl.addEventListener("click", (e) => {
         const btn = e.target.closest(".sd-chat-action-btn");
         if (!btn) return;
-        this._handleAction(btn);
+        this._handleAction(btn).catch(err => console.error("Simple Display chat action error:", err));
       });
     }
 
@@ -92,18 +92,22 @@ export class ChatPanel extends PanelBase {
   }
 
   async _handleAction(btn) {
-    const action = btn.dataset.action;
-    const card = btn.closest(".sd-chat-card");
-    const uuid = card?.dataset.itemUuid;
-    if (!uuid) return;
-    const item = await fromUuid(uuid);
-    if (!item) return;
-    if (action === "attack" && item.rollAttack) {
-      await item.rollAttack();
-    } else if (action === "damage" && item.rollDamage) {
-      await item.rollDamage();
-    } else {
-      await item.use({ legacy: false });
+    try {
+      const action = btn.dataset.action;
+      const card = btn.closest(".sd-chat-card");
+      const uuid = card?.dataset.itemUuid;
+      if (!uuid) return;
+      const item = await fromUuid(uuid);
+      if (!item) return;
+      if (action === "attack" && item.rollAttack) {
+        await item.rollAttack();
+      } else if (action === "damage" && item.rollDamage) {
+        await item.rollDamage();
+      } else {
+        await item.use({ legacy: false });
+      }
+    } catch (err) {
+      console.error("Simple Display chat action error:", err);
     }
   }
 
