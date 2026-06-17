@@ -108,6 +108,7 @@ export class DisplayApp extends ApplicationV2 {
           <div class="sd-portrait">
             <img src="${portrait}" alt="${actorName}" title="${actorName}" />
           </div>
+          <div class="sd-header-bar" id="sd-header-bar-${displayIndex}"></div>
           <div class="sd-panel-content" id="sd-panel-content-${displayIndex}">
             ${hasActor ? "" : `<div class="sd-panel-placeholder"><i class="fas fa-user-slash"></i><h2>No Actor Assigned</h2><p>Set an Actor ID in module settings.</p></div>`}
           </div>
@@ -150,6 +151,9 @@ export class DisplayApp extends ApplicationV2 {
 
     const actor = this.getActor();
     if (!actor) return;
+
+    const headerBar = this.element?.querySelector(`#sd-header-bar-${this.displayIndex}`);
+    if (headerBar) headerBar.innerHTML = "";
 
     const PanelClass = PANEL_REGISTRY[this.activePanel];
     if (!PanelClass) return;

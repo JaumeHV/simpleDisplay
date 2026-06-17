@@ -27,6 +27,24 @@
   overflow: hidden;
 }
 
+.sd-header-bar {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+  pointer-events: auto;
+  min-height: 44px;
+}
+
+.sd-header-bar:empty {
+  display: none;
+}
+
 .sd-portrait {
   position: absolute;
   top: 12px;
@@ -262,16 +280,6 @@
 }
 
 /* ── Container bar ─────────────────── */
-
-.sd-inv-container-bar {
-  display: flex;
-  gap: 6px;
-  padding: 0 0 6px;
-  margin-left: 80px;
-  flex-shrink: 0;
-  overflow-x: auto;
-  min-height: 0;
-}
 
 .sd-inv-container-btn {
   display: flex;

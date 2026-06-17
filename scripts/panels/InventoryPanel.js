@@ -87,10 +87,6 @@ export class InventoryPanel extends PanelBase {
           ${this._renderCurrency()}
         </div>
 
-        <div class="sd-inv-container-bar" id="sd-inv-container-bar">
-          ${this._renderContainerBar()}
-        </div>
-
         <div class="sd-inv-type-filters" id="sd-inv-type-filters">
           <button class="sd-inv-type-pill ${this._favoritesOnly ? "active" : ""} pill-fav" data-filter="favorites"><i class="fas fa-star"></i> Fav</button>
           ${INVENTORY_TYPES.map(t => `<button class="sd-inv-type-pill ${this._activeTypes.has(t) ? "active" : ""}" data-type="${t}">${escapeHtml(TYPE_LABELS[t])}</button>`).join("")}
@@ -103,6 +99,7 @@ export class InventoryPanel extends PanelBase {
     `;
 
     const scrollEl = containerEl.querySelector("#sd-inv-scroll");
+    this._renderHeaderBar();
     this._renderItems();
 
     containerEl.querySelector(".sd-inv-search-input")?.addEventListener("input", (e) => {
@@ -137,18 +134,6 @@ export class InventoryPanel extends PanelBase {
         const type = pill.dataset.type;
         if (!this._activeTypes.delete(type)) this._activeTypes.add(type);
       }
-      this._renderItems();
-    });
-
-    // Container bar click
-    containerEl.querySelector("#sd-inv-container-bar")?.addEventListener("click", (e) => {
-      const btn = e.target.closest(".sd-inv-container-btn");
-      if (!btn) return;
-      const cid = btn.dataset.containerId;
-      if (!cid || cid === this._activeContainerId) return;
-      this._activeContainerId = cid;
-      this._popupItemId = null;
-      this._renderContainerBar();
       this._renderItems();
     });
 
@@ -246,29 +231,6 @@ export class InventoryPanel extends PanelBase {
       });
     }
 
-    // Drag and drop on container bar
-    const barEl = containerEl.querySelector("#sd-inv-container-bar");
-    if (barEl && !barEl._sdDropListener) {
-      barEl._sdDropListener = true;
-      barEl.addEventListener("dragover", (e) => {
-        const target = e.target.closest(".sd-inv-container-btn");
-        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; target.classList.add("drag-over"); }
-      });
-      barEl.addEventListener("dragleave", (e) => {
-        const target = e.target.closest(".sd-inv-container-btn");
-        if (target) target.classList.remove("drag-over");
-      });
-      barEl.addEventListener("drop", (e) => {
-        const target = e.target.closest(".sd-inv-container-btn");
-        if (!target) return;
-        e.preventDefault();
-        target.classList.remove("drag-over");
-        const itemId = e.dataTransfer.getData("text/plain");
-        const targetId = target.dataset.containerId;
-        if (!itemId || !targetId || itemId === targetId) return;
-        this._moveItemToContainer(itemId, targetId);
-      });
-    }
   }
 
   _moveItemToContainer(itemId, containerId) {
@@ -278,7 +240,7 @@ export class InventoryPanel extends PanelBase {
     item.update({ "system.container": containerRef }).then(() => {
       this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
       this._containers = this._allItems.filter(i => i.type === "container" || i.type === "backpack");
-      this._renderContainerBar();
+      this._renderHeaderBar();
       this._renderItems();
     });
   }
@@ -339,6 +301,44 @@ export class InventoryPanel extends PanelBase {
     }
     const max = container.system.capacity?.value ?? 0;
     return { current, max };
+  }
+
+  _renderHeaderBar() {
+    const headerBar = document.getElementById(`sd-header-bar-${this.display.displayIndex}`);
+    if (!headerBar) return;
+    headerBar.innerHTML = this._renderContainerBar();
+
+    if (!headerBar._sdEventsAdded) {
+      headerBar._sdEventsAdded = true;
+      headerBar.addEventListener("click", (e) => {
+        const btn = e.target.closest(".sd-inv-container-btn");
+        if (!btn) return;
+        const cid = btn.dataset.containerId;
+        if (!cid || cid === this._activeContainerId) return;
+        this._activeContainerId = cid;
+        this._popupItemId = null;
+        this._renderHeaderBar();
+        this._renderItems();
+      });
+      headerBar.addEventListener("dragover", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; target.classList.add("drag-over"); }
+      });
+      headerBar.addEventListener("dragleave", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (target) target.classList.remove("drag-over");
+      });
+      headerBar.addEventListener("drop", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (!target) return;
+        e.preventDefault();
+        target.classList.remove("drag-over");
+        const itemId = e.dataTransfer.getData("text/plain");
+        const targetId = target.dataset.containerId;
+        if (!itemId || !targetId || itemId === targetId) return;
+        this._moveItemToContainer(itemId, targetId);
+      });
+    }
   }
 
   _renderContainerBar() {
