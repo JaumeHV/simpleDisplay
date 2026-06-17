@@ -638,7 +638,8 @@ export class InventoryPanel extends PanelBase {
 
         const hasActivation = item.system.activation?.type;
         const hasActivities = item.system.activities?.length > 0;
-        const showUse = type === "consumable" || hasActivation || hasActivities;
+        const hasAttack = ["mwak", "rwak", "msak", "rsak", "attack"].includes(item.system.actionType);
+        const showUse = type === "consumable" || hasActivation || hasActivities || hasAttack;
 
         const desc = item.system.description?.value ?? "";
         const plainDesc = desc.replace(/<[^>]*>/g, "").trim();
