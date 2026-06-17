@@ -274,7 +274,7 @@ export class InventoryPanel extends PanelBase {
   _moveItemToContainer(itemId, containerId) {
     const item = this._actor?.items.get(itemId);
     if (!item) return;
-    const containerRef = containerId === "main" ? null : (this._actor.items.get(containerId)?.uuid ?? null);
+    const containerRef = containerId === "main" ? null : (this._actor.items.get(containerId)?.id ?? null);
     item.update({ "system.container": containerRef }).then(() => {
       this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
       this._containers = this._allItems.filter(i => i.type === "container" || i.type === "backpack");
@@ -322,7 +322,7 @@ export class InventoryPanel extends PanelBase {
     }
     const container = this._actor?.items.get(containerId);
     if (!container) return [];
-    return this._allItems.filter(i => i.system.container === container.uuid);
+    return this._allItems.filter(i => i.system.container === container.id);
   }
 
   _getContainerWeight(containerId) {
@@ -332,7 +332,7 @@ export class InventoryPanel extends PanelBase {
     }
     const container = this._actor?.items.get(containerId);
     if (!container) return { current: 0, max: 0 };
-    const items = this._allItems.filter(i => i.system.container === container.uuid);
+    const items = this._allItems.filter(i => i.system.container === container.id);
     let current = 0;
     for (const item of items) {
       current += (item.system.weight?.value ?? 0) * (item.system.quantity ?? 1);
