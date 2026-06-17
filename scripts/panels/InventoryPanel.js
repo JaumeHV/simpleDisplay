@@ -1,4 +1,5 @@
 import { PanelBase, escapeHtml } from "./PanelBase.js";
+import { isMetric } from "../settings.js";
 
 const INVENTORY_TYPES = ["weapon", "equipment", "consumable", "tool", "loot", "container", "backpack"];
 
@@ -34,6 +35,13 @@ const CURRENCY_META = [
   { key: "cp", label: "CP", color: "#b87333" }
 ];
 
+const LB_TO_KG = 0.453592;
+
+function fmtWeight(lb) {
+  if (isMetric()) return (lb * LB_TO_KG).toFixed(1) + " kg";
+  return lb.toFixed(1) + " lb";
+}
+
 export class InventoryPanel extends PanelBase {
   static panelId = "inventory";
   static panelLabel = "Inventory";
@@ -44,16 +52,21 @@ export class InventoryPanel extends PanelBase {
     this._containerEl = null;
     this._actor = null;
     this._allItems = [];
+    this._containers = [];
     this._searchTerm = "";
     this._sortMode = "name";
     this._collapsedTypes = new Set();
     this._activeTypes = new Set(INVENTORY_TYPES);
+    this._activeContainerId = "main";
+    this._favoritesOnly = false;
+    this._popupItemId = null;
   }
 
   async render(actor, containerEl) {
     this._containerEl = containerEl;
     this._actor = actor;
     this._allItems = actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+    this._containers = this._allItems.filter(i => i.type === "container" || i.type === "backpack");
 
     containerEl.innerHTML = `
       <div class="sd-inv-panel">
@@ -74,7 +87,12 @@ export class InventoryPanel extends PanelBase {
           ${this._renderCurrency()}
         </div>
 
+        <div class="sd-inv-container-bar" id="sd-inv-container-bar">
+          ${this._renderContainerBar()}
+        </div>
+
         <div class="sd-inv-type-filters" id="sd-inv-type-filters">
+          <button class="sd-inv-type-pill ${this._favoritesOnly ? "active" : ""} pill-fav" data-filter="favorites"><i class="fas fa-star"></i> Fav</button>
           ${INVENTORY_TYPES.map(t => `<button class="sd-inv-type-pill ${this._activeTypes.has(t) ? "active" : ""}" data-type="${t}">${escapeHtml(TYPE_LABELS[t])}</button>`).join("")}
         </div>
 
@@ -89,6 +107,7 @@ export class InventoryPanel extends PanelBase {
 
     containerEl.querySelector(".sd-inv-search-input")?.addEventListener("input", (e) => {
       this._searchTerm = e.target.value;
+      this._popupItemId = null;
       this._renderItems();
     });
 
@@ -112,45 +131,156 @@ export class InventoryPanel extends PanelBase {
     containerEl.querySelector("#sd-inv-type-filters")?.addEventListener("click", (e) => {
       const pill = e.target.closest(".sd-inv-type-pill");
       if (!pill) return;
-      const type = pill.dataset.type;
-      if (!this._activeTypes.delete(type)) this._activeTypes.add(type);
+      if (pill.dataset.filter === "favorites") {
+        this._favoritesOnly = !this._favoritesOnly;
+      } else {
+        const type = pill.dataset.type;
+        if (!this._activeTypes.delete(type)) this._activeTypes.add(type);
+      }
       this._renderItems();
+    });
+
+    // Container bar click
+    containerEl.querySelector("#sd-inv-container-bar")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".sd-inv-container-btn");
+      if (!btn) return;
+      const cid = btn.dataset.containerId;
+      if (!cid || cid === this._activeContainerId) return;
+      this._activeContainerId = cid;
+      this._popupItemId = null;
+      this._renderContainerBar();
+      this._renderItems();
+    });
+
+    // Popup backdrop click
+    containerEl.querySelector(".sd-inv-panel")?.addEventListener("pointerdown", (e) => {
+      if (this._popupItemId && !e.target.closest(".sd-inv-popup") && !e.target.closest(".sd-inv-popup-backdrop")) {
+        this._closePopup();
+      }
     });
 
     if (scrollEl && !scrollEl._sdListener) {
       scrollEl._sdListener = true;
-      scrollEl.addEventListener("click", async (e) => {
-        const btn = e.target.closest("button");
+      scrollEl.addEventListener("click", (e) => {
         const header = e.target.closest(".sd-inv-group-header");
-        if (btn) {
-          const itemId = btn.dataset.itemId;
-          if (!itemId) return;
-          const item = this._actor?.items.get(itemId);
-          if (!item) return;
+        const btn = e.target.closest("button");
+        const itemRow = e.target.closest(".sd-inv-item");
 
-          if (btn.classList.contains("sd-inv-item-equip")) {
-            await item.update({ "system.equipped": !item.system.equipped });
-            this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
-            this._renderItems();
-          } else if (btn.classList.contains("sd-inv-item-chat")) {
-            await item.displayCard();
-          } else if (btn.classList.contains("sd-inv-item-use")) {
-            try { await item.use({ legacy: false }); } catch(e) { /* silently fail */ }
-          }
-        } else if (header) {
+        if (header) {
           const type = header.dataset.type;
           if (!type) return;
           const group = header.closest(".sd-inv-group");
-          if (this._collapsedTypes.has(type)) {
-            this._collapsedTypes.delete(type);
-            group?.classList.remove("collapsed");
-          } else {
-            this._collapsedTypes.add(type);
-            group?.classList.add("collapsed");
+          this._collapsedTypes.has(type) ? this._collapsedTypes.delete(type) : this._collapsedTypes.add(type);
+          group?.classList.toggle("collapsed");
+          return;
+        }
+
+        if (btn) {
+          const itemId = btn.dataset.itemId;
+          if (!itemId) return;
+          if (btn.classList.contains("sd-inv-item-fav-btn")) {
+            this._toggleFavorite(itemId);
+            return;
+          }
+          const item = this._actor?.items.get(itemId);
+          if (!item) return;
+          if (btn.classList.contains("sd-inv-item-equip")) {
+            item.update({ "system.equipped": !item.system.equipped }).then(() => {
+              this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+              this._renderItems();
+            });
+          } else if (btn.classList.contains("sd-inv-item-chat")) {
+            item.displayCard();
+          } else if (btn.classList.contains("sd-inv-item-use")) {
+            try { item.use({ legacy: false }); } catch(e) {}
+          }
+          return;
+        }
+
+        if (itemRow) {
+          const itemId = itemRow.dataset.itemId;
+          if (itemId) {
+            this._popupItemId === itemId ? this._closePopup() : this._showPopup(itemId);
           }
         }
       });
+
+      // Drag and drop on scroll area
+      scrollEl.addEventListener("dragstart", (e) => {
+        const row = e.target.closest(".sd-inv-item");
+        if (row) {
+          e.dataTransfer.setData("text/plain", row.dataset.itemId);
+          e.dataTransfer.effectAllowed = "move";
+          row.classList.add("dragging");
+        }
+      });
+
+      scrollEl.addEventListener("dragend", (e) => {
+        document.querySelectorAll(".sd-inv-item.dragging").forEach(el => el.classList.remove("dragging"));
+        document.querySelectorAll(".drag-over").forEach(el => el.classList.remove("drag-over"));
+      });
+
+      scrollEl.addEventListener("dragover", (e) => {
+        const target = e.target.closest("[data-drop-container]");
+        if (target) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          target.classList.add("drag-over");
+        }
+      });
+
+      scrollEl.addEventListener("dragleave", (e) => {
+        const target = e.target.closest("[data-drop-container]");
+        if (target) target.classList.remove("drag-over");
+      });
+
+      scrollEl.addEventListener("drop", (e) => {
+        const target = e.target.closest("[data-drop-container]");
+        if (!target) return;
+        e.preventDefault();
+        target.classList.remove("drag-over");
+        const itemId = e.dataTransfer.getData("text/plain");
+        const targetId = target.dataset.containerId || target.dataset.itemId;
+        if (!itemId || !targetId || itemId === targetId) return;
+        this._moveItemToContainer(itemId, targetId);
+      });
     }
+
+    // Drag and drop on container bar
+    const barEl = containerEl.querySelector("#sd-inv-container-bar");
+    if (barEl && !barEl._sdDropListener) {
+      barEl._sdDropListener = true;
+      barEl.addEventListener("dragover", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; target.classList.add("drag-over"); }
+      });
+      barEl.addEventListener("dragleave", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (target) target.classList.remove("drag-over");
+      });
+      barEl.addEventListener("drop", (e) => {
+        const target = e.target.closest(".sd-inv-container-btn");
+        if (!target) return;
+        e.preventDefault();
+        target.classList.remove("drag-over");
+        const itemId = e.dataTransfer.getData("text/plain");
+        const targetId = target.dataset.containerId;
+        if (!itemId || !targetId || itemId === targetId) return;
+        this._moveItemToContainer(itemId, targetId);
+      });
+    }
+  }
+
+  _moveItemToContainer(itemId, containerId) {
+    const item = this._actor?.items.get(itemId);
+    if (!item) return;
+    const containerRef = containerId === "main" ? null : (this._actor.items.get(containerId)?.uuid ?? null);
+    item.update({ "system.container": containerRef }).then(() => {
+      this._allItems = this._actor.items.filter(i => INVENTORY_TYPES.includes(i.type));
+      this._containers = this._allItems.filter(i => i.type === "container" || i.type === "backpack");
+      this._renderContainerBar();
+      this._renderItems();
+    });
   }
 
   _renderCurrency() {
@@ -171,22 +301,146 @@ export class InventoryPanel extends PanelBase {
     if (!input) return;
     input.focus();
     input.select();
-
     const finish = async (save) => {
       if (save) {
         const newVal = parseInt(input.value) || 0;
-        try { await this._actor?.update({ [`system.currency.${key}`]: newVal }); }
-        catch(e) { /* silently fail */ }
+        try { await this._actor?.update({ [`system.currency.${key}`]: newVal }); } catch(e) {}
       }
       const currBar = this._containerEl?.querySelector("#sd-inv-currency");
       if (currBar) currBar.innerHTML = this._renderCurrency();
     };
-
     input.addEventListener("blur", () => finish(true));
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); input.blur(); }
       if (e.key === "Escape") { e.preventDefault(); finish(false); }
     });
+  }
+
+  _getContainerItems(containerId) {
+    if (containerId === "main") {
+      return this._allItems.filter(i => !i.system.container);
+    }
+    const container = this._actor?.items.get(containerId);
+    if (!container) return [];
+    return this._allItems.filter(i => i.system.container === container.uuid);
+  }
+
+  _getContainerWeight(containerId) {
+    if (containerId === "main") {
+      const enc = this._actor?.system?.attributes?.encumbrance;
+      return { current: enc?.value ?? 0, max: enc?.max ?? 0 };
+    }
+    const container = this._actor?.items.get(containerId);
+    if (!container) return { current: 0, max: 0 };
+    const items = this._allItems.filter(i => i.system.container === container.uuid);
+    let current = 0;
+    for (const item of items) {
+      current += (item.system.weight?.value ?? 0) * (item.system.quantity ?? 1);
+    }
+    const max = container.system.capacity?.value ?? 0;
+    return { current, max };
+  }
+
+  _renderContainerBar() {
+    let html = `<button class="sd-inv-container-btn ${this._activeContainerId === "main" ? "active" : ""}" data-container-id="main" data-drop-container="true" title="Main Inventory">
+      <i class="fas fa-box" style="font-size:24px;color:var(--sd-text-muted)"></i>
+      <span class="sd-inv-container-label">Main</span>
+      ${this._weightBarHtml("main")}
+    </button>`;
+
+    for (const container of this._containers) {
+      const active = this._activeContainerId === container.id;
+      const name = escapeHtml(container.name);
+      const img = escapeHtml(container.img || "icons/svg/mystery-man.svg");
+      html += `<button class="sd-inv-container-btn ${active ? "active" : ""}" data-container-id="${container.id}" data-drop-container="true" title="${name}">
+        <img src="${img}" alt="${name}" />
+        <span class="sd-inv-container-label">${name}</span>
+        ${this._weightBarHtml(container.id)}
+      </button>`;
+    }
+    return html;
+  }
+
+  _weightBarHtml(containerId) {
+    const { current, max } = this._getContainerWeight(containerId);
+    const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
+    const color = pct >= 90 ? "#ff6b6b" : pct >= 75 ? "#fb923c" : "#4ade80";
+    return `<div class="sd-inv-weight-bar">
+      <div class="sd-inv-weight-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div>
+    </div>
+    <span class="sd-inv-weight-text">${fmtWeight(current)} / ${fmtWeight(max)}</span>`;
+  }
+
+  _toggleFavorite(itemId) {
+    const item = this._actor?.items.get(itemId);
+    if (!item) return;
+    const key = "favorite";
+    const current = item.getFlag("simple-display", key);
+    item.setFlag("simple-display", key, !current).then(() => this._renderItems());
+  }
+
+  _isFavorite(item) {
+    return item.getFlag("simple-display", "favorite") === true;
+  }
+
+  _closePopup() {
+    const panel = this._containerEl?.querySelector(".sd-inv-panel");
+    if (panel) {
+      const existing = panel.querySelector(".sd-inv-popup-backdrop");
+      if (existing) existing.remove();
+      const popup = panel.querySelector(".sd-inv-popup");
+      if (popup) popup.remove();
+    }
+    this._popupItemId = null;
+  }
+
+  _showPopup(itemId) {
+    this._closePopup();
+    this._popupItemId = itemId;
+    const item = this._actor?.items.get(itemId);
+    if (!item) return;
+    const panel = this._containerEl?.querySelector(".sd-inv-panel");
+    if (!panel) return;
+
+    const name = escapeHtml(item.name);
+    const icon = escapeHtml(item.img || "icons/svg/mystery-man.svg");
+    const desc = item.system.description?.value ?? "<p><em>No description</em></p>";
+    const rarity = item.system.rarity;
+    const rarityLabel = rarity ? (game.i18n ? game.i18n.localize(CONFIG?.DND5E?.itemRarity?.[rarity] ?? rarity) : rarity) : null;
+
+    const popup = document.createElement("div");
+    popup.className = "sd-inv-popup";
+    popup.addEventListener("pointerdown", (e) => e.stopPropagation());
+
+    let headerHtml = `<div class="sd-inv-popup-header">
+      <img src="${icon}" alt="${name}" />
+      <span class="sd-inv-popup-title">${name}</span>
+      <button type="button" class="sd-inv-popup-close" title="Close">&times;</button>
+    </div>`;
+    if (rarityLabel) {
+      headerHtml = `<div class="sd-inv-popup-header" style="border-left:3px solid ${RARITY_COLORS[rarity] || "transparent"}">
+        <img src="${icon}" alt="${name}" />
+        <span class="sd-inv-popup-title">${name} <span style="font-size:11px;font-weight:400;color:${RARITY_COLORS[rarity] || "var(--sd-text-dim)"}">(${rarityLabel})</span></span>
+        <button type="button" class="sd-inv-popup-close" title="Close">&times;</button>
+      </div>`;
+    }
+
+    popup.innerHTML = headerHtml + `<div class="sd-inv-popup-body">${desc}</div>`;
+    popup.querySelector(".sd-inv-popup-close")?.addEventListener("click", () => this._closePopup());
+    panel.appendChild(popup);
+
+    // Position popup
+    const scrollEl = panel.querySelector("#sd-inv-scroll");
+    if (scrollEl) {
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const offsetTop = scrollRect.top - panelRect.top + 10;
+      const offsetLeft = 10;
+      popup.style.position = "absolute";
+      popup.style.top = Math.min(offsetTop, panel.clientHeight - 420) + "px";
+      popup.style.left = offsetLeft + "px";
+      popup.style.maxWidth = Math.min(320, panel.clientWidth - 20) + "px";
+    }
   }
 
   _renderItems() {
@@ -196,14 +450,22 @@ export class InventoryPanel extends PanelBase {
     if (!scrollEl || !footerEl || !filterEl) return;
 
     filterEl.querySelectorAll(".sd-inv-type-pill").forEach(pill => {
-      pill.classList.toggle("active", this._activeTypes.has(pill.dataset.type));
+      if (pill.dataset.filter === "favorites") {
+        pill.classList.toggle("active", this._favoritesOnly);
+      } else if (pill.dataset.type) {
+        pill.classList.toggle("active", this._activeTypes.has(pill.dataset.type));
+      }
     });
 
-    let items = this._allItems;
+    let items = this._getContainerItems(this._activeContainerId);
 
     if (this._searchTerm) {
       const term = this._searchTerm.toLowerCase();
       items = items.filter(i => i.name.toLowerCase().includes(term));
+    }
+
+    if (this._favoritesOnly) {
+      items = items.filter(i => this._isFavorite(i));
     }
 
     const groups = {};
@@ -241,7 +503,6 @@ export class InventoryPanel extends PanelBase {
         const rarity = item.system.rarity;
         const rarityColor = RARITY_COLORS[rarity] ?? null;
 
-        // Attunement
         const attunement = item.system.attunement;
         const attuned = item.system.attuned;
         let attIcon = "";
@@ -253,35 +514,44 @@ export class InventoryPanel extends PanelBase {
           attIcon = `<i class="fas fa-sun" style="color:#6aa8ff;opacity:0.5" title="Optional Attunement"></i>`;
         }
 
-        // Use button for items with activation or activities
         const hasActivation = item.system.activation?.type;
         const hasActivities = item.system.activities?.length > 0;
         const showUse = type === "consumable" || hasActivation || hasActivities;
 
-        // Tooltip description
         const desc = item.system.description?.value ?? "";
         const plainDesc = desc.replace(/<[^>]*>/g, "").trim();
         const tooltip = plainDesc
           ? escapeHtml(plainDesc.substring(0, 200) + (plainDesc.length > 200 ? "…" : ""))
           : null;
 
-        // Rarity border on icon
-        const rarityStyle = rarityColor ? `style="border-color:${rarityColor}"` : "";
+        const rarityCls = rarityColor ? ` rarity-${rarity}` : "";
+        const isContainer = type === "container" || type === "backpack";
+        const isFav = this._isFavorite(item);
+        const highlighted = this._popupItemId === item.id;
 
-        itemsHtml += `<div class="sd-inv-item"${tooltip ? ` title="${tooltip}"` : ""}>
-          <img class="sd-inv-item-icon" src="${icon}" alt="${name}" loading="lazy" ${rarityStyle} />
+        itemsHtml += `<div class="sd-inv-item${highlighted ? " sd-inv-item-highlight" : ""}" data-item-id="${item.id}"${isContainer ? ` data-drop-container="true"` : ""} draggable="true"${tooltip ? ` title="${tooltip}"` : ""}>
+          <span class="sd-inv-item-fav">
+            <button type="button" class="sd-inv-item-fav-btn" data-item-id="${item.id}" title="${isFav ? "Unfavorite" : "Favorite"}">
+              <i class="fas fa-star${isFav ? " fav-on" : ""}"></i>
+            </button>
+          </span>
+          <span class="sd-inv-item-icon-wrap">
+            <img class="sd-inv-item-icon${rarityCls}" src="${icon}" alt="${name}" loading="lazy" />
+          </span>
           <span class="sd-inv-item-name">${name}</span>
           <span class="sd-inv-item-qty">×${qty}</span>
-          <span class="sd-inv-item-weight">${weight > 0 ? weight.toFixed(1) : "—"}</span>
+          <span class="sd-inv-item-weight">${weight > 0 ? fmtWeight(weight) : "—"}</span>
           <span class="sd-inv-item-value">${value > 0 ? `${value} ${denom}` : ""}</span>
-          ${attIcon ? `<span class="sd-inv-item-att">${attIcon}</span>` : ""}
-          ${showUse ? `<button class="sd-inv-item-use" data-item-id="${item.id}" title="Use item"><i class="fas fa-bolt"></i></button>` : ""}
-          ${canEquip ? `<button class="sd-inv-item-equip" data-item-id="${item.id}" title="${item.system.equipped ? "Unequip" : "Equip"}">
-            <i class="fas ${item.system.equipped ? "fa-check-circle" : "fa-circle"}"></i>
-          </button>` : ""}
-          <button class="sd-inv-item-chat" data-item-id="${item.id}" title="Show in chat">
-            <i class="fas fa-comment"></i>
-          </button>
+          ${attIcon ? `<span class="sd-inv-item-att">${attIcon}</span>` : `<span class="sd-inv-item-att"></span>`}
+          <span class="sd-inv-item-actions">
+            ${showUse ? `<button class="sd-inv-item-use" data-item-id="${item.id}" title="Use item"><i class="fas fa-bolt"></i></button>` : ""}
+            ${canEquip ? `<button class="sd-inv-item-equip" data-item-id="${item.id}" title="${item.system.equipped ? "Unequip" : "Equip"}">
+              <i class="fas ${item.system.equipped ? "fa-check-circle" : "fa-circle"}"></i>
+            </button>` : ""}
+            <button class="sd-inv-item-chat" data-item-id="${item.id}" title="Show in chat">
+              <i class="fas fa-comment"></i>
+            </button>
+          </span>
         </div>`;
       }
 
@@ -297,12 +567,10 @@ export class InventoryPanel extends PanelBase {
       <p>${this._searchTerm ? "No items match your search" : "No items in inventory"}</p>
     </div>`;
 
-    const encumbrance = this._actor?.system?.attributes?.encumbrance;
-    const maxWeight = encumbrance?.max ?? 0;
+    const { current, max } = this._getContainerWeight(this._activeContainerId);
     footerEl.innerHTML = `
       <span>${totalItems} items</span>
-      <span>${totalWeight.toFixed(1)} / ${maxWeight} lb</span>
+      <span>${fmtWeight(current)} / ${fmtWeight(max)}</span>
     `;
-
   }
 }

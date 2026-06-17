@@ -20,6 +20,15 @@ export function registerSettings() {
     type: Boolean,
     default: false
   });
+
+  game.settings.register(MODULE_ID, "metricUnits", {
+    name: "Use Metric Units",
+    hint: "Display weights in kilograms instead of pounds.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false
+  });
 }
 
 export function getActorId(displayIndex) {
@@ -28,4 +37,8 @@ export function getActorId(displayIndex) {
 
 export function isDebug() {
   return game.settings.get(MODULE_ID, "debugMode") === true;
+}
+
+export function isMetric() {
+  return game.settings.get(MODULE_ID, "metricUnits") === true;
 }
