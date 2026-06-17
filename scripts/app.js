@@ -35,9 +35,12 @@ export const activeDisplays = {};
 
 export class DisplayApp extends ApplicationV2 {
   constructor(displayIndex, options = {}) {
+    const actorName = (() => {
+      try { return game?.actors?.get(getActorId(displayIndex))?.name; } catch(e) { return null; }
+    })();
     super({
       id: `simple-display-${displayIndex}`,
-      window: { title: `Simple Display ${displayIndex}` },
+      window: { title: actorName ?? `Simple Display ${displayIndex}` },
       ...options
     });
     this.displayIndex = displayIndex;
@@ -126,6 +129,12 @@ export class DisplayApp extends ApplicationV2 {
 
   _onRender(context, options) {
     debug("_onRender, activePanel:", this.activePanel, "hasActor:", context?.hasActor);
+    const actor = this.getActor();
+    if (actor && this.options.window?.title !== actor.name) {
+      this.options.window.title = actor.name;
+      const header = this.element?.querySelector?.(".window-header .window-title");
+      if (header) header.textContent = actor.name;
+    }
     const contentEl = this.element?.querySelector?.(`#sd-panel-content-${this.displayIndex}`);
     if (contentEl && context?.hasActor) {
       this._renderActivePanel(contentEl);
