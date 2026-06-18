@@ -60,6 +60,7 @@ export class InventoryPanel extends PanelBase {
     this._activeContainerId = "main";
     this._favoritesOnly = false;
     this._popupItemId = null;
+    this._detailEl = null;
     this._keyboardEl = null;
   }
 
@@ -139,7 +140,7 @@ export class InventoryPanel extends PanelBase {
     });
 
     containerEl.querySelector(".sd-inv-panel")?.addEventListener("pointerdown", (e) => {
-      if (this._popupItemId && !e.target.closest(".sd-inv-popup")) {
+      if (this._popupItemId && !e.target.closest(".sd-chat-detail-overlay")) {
         this._closePopup();
       }
     });
@@ -509,11 +510,8 @@ export class InventoryPanel extends PanelBase {
   }
 
   _closePopup() {
-    const panel = this._containerEl?.querySelector(".sd-inv-panel");
-    if (panel) {
-      const popup = panel.querySelector(".sd-inv-popup");
-      if (popup) popup.remove();
-    }
+    this._detailEl?.remove();
+    this._detailEl = null;
     this._popupItemId = null;
   }
 
@@ -530,38 +528,28 @@ export class InventoryPanel extends PanelBase {
     const desc = item.system.description?.value ?? "<p><em>No description</em></p>";
     const rarity = item.system.rarity;
     const rarityLabel = rarity ? (game.i18n ? game.i18n.localize(CONFIG?.DND5E?.itemRarity?.[rarity] ?? rarity) : rarity) : null;
+    const rarityColor = RARITY_COLORS[rarity] || null;
 
-    const popup = document.createElement("div");
-    popup.className = "sd-inv-popup";
-    popup.addEventListener("pointerdown", (e) => e.stopPropagation());
-
-    let headerHtml = `<div class="sd-inv-popup-header">
-      <img src="${icon}" alt="${name}" />
-      <span class="sd-inv-popup-title">${name}</span>
-      <button type="button" class="sd-inv-popup-close" title="Close">&times;</button>
-    </div>`;
-    if (rarityLabel) {
-      headerHtml = `<div class="sd-inv-popup-header" style="border-left:3px solid ${RARITY_COLORS[rarity] || "transparent"}">
-        <img src="${icon}" alt="${name}" />
-        <span class="sd-inv-popup-title">${name} <span style="font-size:11px;font-weight:400;color:${RARITY_COLORS[rarity] || "var(--sd-text-dim)"}">(${rarityLabel})</span></span>
-        <button type="button" class="sd-inv-popup-close" title="Close">&times;</button>
-      </div>`;
-    }
-
-    popup.innerHTML = headerHtml + `<div class="sd-inv-popup-body">${desc}</div>`;
-    popup.querySelector(".sd-inv-popup-close")?.addEventListener("click", () => this._closePopup());
-    panel.appendChild(popup);
-
-    const scrollEl = panel.querySelector("#sd-inv-scroll");
-    if (scrollEl) {
-      const scrollRect = scrollEl.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      const offsetTop = scrollRect.top - panelRect.top + 10;
-      popup.style.position = "absolute";
-      popup.style.top = Math.min(offsetTop, panel.clientHeight - 420) + "px";
-      popup.style.left = "10px";
-      popup.style.maxWidth = Math.min(320, panel.clientWidth - 20) + "px";
-    }
+    const overlay = document.createElement("div");
+    overlay.className = "sd-chat-detail-overlay";
+    overlay.innerHTML = `
+      <div class="sd-chat-detail">
+        <button type="button" class="sd-chat-detail-close" title="Close"><i class="fas fa-times"></i></button>
+        <div class="sd-chat-detail-header">
+          <img src="${icon}" alt="" class="sd-chat-detail-icon">
+          <div>
+            <div class="sd-chat-detail-title">${name}</div>
+            ${rarityLabel ? `<div class="sd-chat-detail-subtitle"${rarityColor ? ` style="color:${rarityColor}"` : ""}>${rarityLabel}</div>` : ""}
+          </div>
+        </div>
+        <div class="sd-chat-detail-desc">${desc}</div>
+      </div>
+    `;
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay || e.target.closest(".sd-chat-detail-close")) this._closePopup();
+    });
+    panel.appendChild(overlay);
+    this._detailEl = overlay;
   }
 
   _renderItems() {
@@ -696,5 +684,10 @@ export class InventoryPanel extends PanelBase {
       <span>${totalItems} items</span>
       <span>${fmtWeight(current)} / ${fmtWeight(max)}</span>
     `;
+  }
+
+  destroy() {
+    this._closePopup();
+    super.destroy();
   }
 }

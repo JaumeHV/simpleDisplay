@@ -38,6 +38,7 @@ export class SpellsPanel extends PanelBase {
     this._searchTerm = "";
     this._levelFilter = "all";
     this._collapsedLevels = new Set();
+    this._detailEl = null;
   }
 
   async render(actor, containerEl) {
@@ -103,8 +104,8 @@ export class SpellsPanel extends PanelBase {
           if (btn.classList.contains("sd-spell-cast")) {
             try { spell.use({ legacy: false }); } catch(e) {}
           } else if (btn.classList.contains("sd-spell-prep")) {
-            const prepared = !(spell.system.prepared ?? spell.system.preparation?.prepared ?? false);
-            spell.update({ "system.prepared": prepared }).then(() => {
+            const prepared = !(spell.system.preparation?.prepared ?? spell.system.prepared ?? false);
+            spell.update({ "system.preparation.prepared": prepared }).then(() => {
               this._allSpells = this._actor.items.filter(i => i.type === "spell");
               this._renderSpells();
             });
@@ -218,9 +219,9 @@ export class SpellsPanel extends PanelBase {
         const actEntry = CONFIG?.DND5E?.abilityActivationTypes?.[activation];
         const actKey = typeof actEntry === "string" ? actEntry : actEntry?.label ?? activation;
         const activLabel = activation ? (game.i18n?.localize(actKey) ?? activation) : "";
-        const prepMode = spell.system.method ?? spell.system.preparation?.mode ?? "";
-        const isPrepared = spell.system.prepared ?? spell.system.preparation?.prepared ?? false;
-        const showPrep = prepMode === "prepared" || prepMode === "pact";
+        const prepMode = spell.system.preparation?.mode ?? spell.system.method ?? "";
+        const isPrepared = spell.system.preparation?.prepared ?? spell.system.prepared ?? false;
+        const showPrep = level > 0 && (!prepMode || prepMode === "prepared" || prepMode === "pact");
         const components = [];
         if (spell.system.components?.v) components.push("V");
         if (spell.system.components?.s) components.push("S");
@@ -271,8 +272,7 @@ export class SpellsPanel extends PanelBase {
   _showPopup(spellId) {
     const panel = this._containerEl?.querySelector(".sd-spell-panel");
     if (!panel) return;
-    const existing = panel.querySelector(".sd-spell-popup");
-    if (existing) { existing.remove(); return; }
+    if (this._detailEl) { this._closeDetail(); return; }
 
     const spell = this._actor?.items.get(spellId);
     if (!spell) return;
@@ -300,38 +300,45 @@ export class SpellsPanel extends PanelBase {
     const materials = spell.system.materials?.value ? escapeHtml(spell.system.materials.value) : "";
     const target = spell.system.target?.type ? `${spell.system.target.value ? spell.system.target.value + " " : ""}${spell.system.target.type}${spell.system.target.units ? " (" + spell.system.target.units + ")" : ""}` : "";
 
-    const popup = document.createElement("div");
-    popup.className = "sd-spell-popup";
-    popup.addEventListener("pointerdown", (e) => e.stopPropagation());
+    const overlay = document.createElement("div");
+    overlay.className = "sd-chat-detail-overlay";
+    overlay.innerHTML = `
+      <div class="sd-chat-detail">
+        <button type="button" class="sd-chat-detail-close" title="Close"><i class="fas fa-times"></i></button>
+        <div class="sd-chat-detail-header">
+          <img src="${icon}" alt="" class="sd-chat-detail-icon">
+          <div>
+            <div class="sd-chat-detail-title">${name}</div>
+            <div class="sd-chat-detail-subtitle">${levelLabel}</div>
+          </div>
+        </div>
+        <div class="sd-detail-meta">
+          <span><i class="fas ${SCHOOL_ICONS[school] || "fa-circle"}" style="color:${schoolColor}"></i> ${schoolLabel}</span>
+          ${activation ? `<span><i class="fas fa-clock"></i> ${activation}</span>` : ""}
+        </div>
+        <div class="sd-detail-details">
+          ${duration ? `<div><strong>Duration:</strong> ${duration}</div>` : ""}
+          ${rangeVal ? `<div><strong>Range:</strong> ${rangeVal}</div>` : ""}
+          ${target ? `<div><strong>Target:</strong> ${target}</div>` : ""}
+          <div><strong>Components:</strong> ${compStr}${materials ? ` (${materials})` : ""}</div>
+        </div>
+        <div class="sd-chat-detail-desc">${desc}</div>
+      </div>
+    `;
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay || e.target.closest(".sd-chat-detail-close")) this._closeDetail();
+    });
+    panel.appendChild(overlay);
+    this._detailEl = overlay;
+  }
 
-    popup.innerHTML = `<div class="sd-spell-popup-header" style="border-left:3px solid ${schoolColor}">
-      <img src="${icon}" alt="${name}" />
-      <span class="sd-spell-popup-title">${name}</span>
-      <button type="button" class="sd-spell-popup-close" title="Close">&times;</button>
-    </div>
-    <div class="sd-spell-popup-meta">
-      <span><i class="fas ${SCHOOL_ICONS[school] || "fa-circle"}" style="color:${schoolColor}"></i> ${schoolLabel}</span>
-      <span>${levelLabel}</span>
-      ${activation ? `<span><i class="fas fa-clock"></i> ${activation}</span>` : ""}
-    </div>
-    <div class="sd-spell-popup-details">
-      ${duration ? `<div><strong>Duration:</strong> ${duration}</div>` : ""}
-      ${rangeVal ? `<div><strong>Range:</strong> ${rangeVal}</div>` : ""}
-      ${target ? `<div><strong>Target:</strong> ${target}</div>` : ""}
-      <div><strong>Components:</strong> ${compStr}${materials ? ` (${materials})` : ""}</div>
-    </div>
-    <div class="sd-spell-popup-body">${desc}</div>`;
-
-    popup.querySelector(".sd-spell-popup-close")?.addEventListener("click", () => popup.remove());
-
-    panel.querySelector(".sd-spell-scroll")?.before(popup);
-
-    panel.addEventListener("pointerdown", (e) => {
-      if (!e.target.closest(".sd-spell-popup")) popup.remove();
-    }, { once: true });
+  _closeDetail() {
+    this._detailEl?.remove();
+    this._detailEl = null;
   }
 
   destroy() {
+    this._closeDetail();
     this._containerEl = null;
     this._actor = null;
     this._allSpells = [];

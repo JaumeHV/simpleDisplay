@@ -32,6 +32,7 @@ export class FeaturesPanel extends PanelBase {
     this._allFeatures = [];
     this._searchTerm = "";
     this._collapsedTypes = new Set();
+    this._detailEl = null;
   }
 
   async render(actor, containerEl) {
@@ -176,8 +177,7 @@ export class FeaturesPanel extends PanelBase {
   _showPopup(featId) {
     const panel = this._containerEl?.querySelector(".sd-feat-panel");
     if (!panel) return;
-    const existing = panel.querySelector(".sd-feat-popup");
-    if (existing) { existing.remove(); return; }
+    if (this._detailEl) { this._closeDetail(); return; }
 
     const feat = this._actor?.items.get(featId);
     if (!feat) return;
@@ -188,15 +188,10 @@ export class FeaturesPanel extends PanelBase {
     const typeVal = feat.system.type?.value ?? "";
     const meta = FEATURE_TYPE_MAP[typeVal] ?? { label: typeVal, icon: "fa-circle", color: "var(--sd-text-dim)" };
 
-    const popup = document.createElement("div");
-    popup.className = "sd-feat-popup";
-    popup.addEventListener("pointerdown", (e) => e.stopPropagation());
-
     let detailsHtml = "";
     const activation = feat.system.activation?.type;
     const uses = feat.system.uses;
     if (activation || (uses?.max > 0)) {
-      detailsHtml = '<div class="sd-feat-popup-details">';
       if (activation) {
         const actEntry = CONFIG?.DND5E?.abilityActivationTypes?.[activation];
         const actKey = typeof actEntry === "string" ? actEntry : actEntry?.label ?? activation;
@@ -206,25 +201,37 @@ export class FeaturesPanel extends PanelBase {
       if (uses?.max > 0) {
         detailsHtml += `<div><strong>Uses:</strong> ${uses.value ?? 0}/${uses.max}${uses.per ? ` (${RECHARGE_PERIODS[uses.per] ?? uses.per})` : ""}</div>`;
       }
-      detailsHtml += "</div>";
     }
 
-    popup.innerHTML = `<div class="sd-feat-popup-header" style="border-left:3px solid ${meta.color}">
-      <img src="${icon}" alt="${name}" />
-      <span class="sd-feat-popup-title">${name}</span>
-      <button type="button" class="sd-feat-popup-close" title="Close">&times;</button>
-    </div>
-    ${detailsHtml}
-    <div class="sd-feat-popup-body">${desc}</div>`;
+    const overlay = document.createElement("div");
+    overlay.className = "sd-chat-detail-overlay";
+    overlay.innerHTML = `
+      <div class="sd-chat-detail">
+        <button type="button" class="sd-chat-detail-close" title="Close"><i class="fas fa-times"></i></button>
+        <div class="sd-chat-detail-header">
+          <img src="${icon}" alt="" class="sd-chat-detail-icon">
+          <div>
+            <div class="sd-chat-detail-title">${name}</div>
+          </div>
+        </div>
+        ${detailsHtml ? `<div class="sd-detail-details">${detailsHtml}</div>` : ""}
+        <div class="sd-chat-detail-desc">${desc}</div>
+      </div>
+    `;
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay || e.target.closest(".sd-chat-detail-close")) this._closeDetail();
+    });
+    panel.appendChild(overlay);
+    this._detailEl = overlay;
+  }
 
-    popup.querySelector(".sd-feat-popup-close")?.addEventListener("click", () => popup.remove());
-    panel.querySelector(".sd-feat-scroll")?.before(popup);
-    panel.addEventListener("pointerdown", (e) => {
-      if (!e.target.closest(".sd-feat-popup")) popup.remove();
-    }, { once: true });
+  _closeDetail() {
+    this._detailEl?.remove();
+    this._detailEl = null;
   }
 
   destroy() {
+    this._closeDetail();
     this._containerEl = null;
     this._actor = null;
     this._allFeatures = [];

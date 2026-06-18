@@ -656,77 +656,6 @@
 .sd-inv-item-icon.rarity-legendary { border-color: #fb923c; }
 .sd-inv-item-icon.rarity-artifact { border-color: #fbbf24; }
 
-/* ── Item detail popup ──────────────── */
-
-.sd-inv-popup {
-  position: absolute;
-  z-index: 100;
-  background: var(--sd-bg-panel);
-  border: 1px solid var(--sd-border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  width: 320px;
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
-}
-
-.sd-inv-popup-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--sd-border);
-  flex-shrink: 0;
-}
-
-.sd-inv-popup-header img {
-  width: 32px;
-  height: 32px;
-  border-radius: 3px;
-  object-fit: cover;
-}
-
-.sd-inv-popup-header .sd-inv-popup-title {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--sd-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sd-inv-popup-close {
-  background: none;
-  border: none;
-  color: var(--sd-text-dim);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 4px;
-  transition: color 0.15s;
-  flex-shrink: 0;
-}
-
-.sd-inv-popup-close:hover {
-  color: #ff6b6b;
-}
-
-.sd-inv-popup-body {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--sd-text);
-  line-height: 1.5;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sd-inv-popup-body p {
-  margin: 0 0 8px;
-}
-
 .sd-inv-item-highlight {
   background: rgba(106, 168, 255, 0.12) !important;
 }
@@ -1221,105 +1150,6 @@
   color: var(--sd-accent);
 }
 
-/* Spell popup */
-.sd-spell-popup {
-  position: absolute;
-  z-index: 100;
-  background: var(--sd-bg-panel);
-  border: 1px solid var(--sd-border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  width: 320px;
-  max-height: 420px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
-  top: 60px;
-  left: 10px;
-}
-
-.sd-spell-popup-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--sd-border);
-  flex-shrink: 0;
-}
-
-.sd-spell-popup-header img {
-  width: 32px;
-  height: 32px;
-  border-radius: 3px;
-  object-fit: cover;
-}
-
-.sd-spell-popup-title {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--sd-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sd-spell-popup-close {
-  background: none;
-  border: none;
-  color: var(--sd-text-dim);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 4px;
-  flex-shrink: 0;
-}
-
-.sd-spell-popup-close:hover {
-  color: #ff6b6b;
-}
-
-.sd-spell-popup-meta {
-  display: flex;
-  gap: 10px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: var(--sd-text-muted);
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid var(--sd-border);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.sd-spell-popup-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: var(--sd-text-dim);
-  background: rgba(255, 255, 255, 0.01);
-  border-bottom: 1px solid var(--sd-border);
-  flex-shrink: 0;
-}
-
-.sd-spell-popup-details strong {
-  color: var(--sd-text-muted);
-}
-
-.sd-spell-popup-body {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--sd-text);
-  line-height: 1.5;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sd-spell-popup-body p {
-  margin: 0 0 8px;
-}
-
 /* ── Effects Panel ──────────────── */
 
 .sd-effects-panel {
@@ -1700,65 +1530,23 @@
   color: var(--sd-accent);
 }
 
-/* Feat popup */
-.sd-feat-popup {
-  position: absolute;
-  z-index: 100;
-  background: var(--sd-bg-panel);
-  border: 1px solid var(--sd-border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  width: 320px;
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
-  top: 50px;
-  left: 10px;
-}
+/* ── Chat Detail Overlay (shared by all panels) ── */
 
-.sd-feat-popup-header {
+/* Meta row (school, level, activation). */
+.sd-detail-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--sd-text-muted);
+  background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--sd-border);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.sd-feat-popup-header img {
-  width: 32px;
-  height: 32px;
-  border-radius: 3px;
-  object-fit: cover;
-}
-
-.sd-feat-popup-title {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--sd-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sd-feat-popup-close {
-  background: none;
-  border: none;
-  color: var(--sd-text-dim);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 4px;
-  flex-shrink: 0;
-}
-
-.sd-feat-popup-close:hover {
-  color: #ff6b6b;
-}
-
-.sd-feat-popup-details {
+/* Details row (duration, range, target, components, uses). */
+.sd-detail-details {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
@@ -1770,21 +1558,8 @@
   flex-shrink: 0;
 }
 
-.sd-feat-popup-details strong {
+.sd-detail-details strong {
   color: var(--sd-text-muted);
-}
-
-.sd-feat-popup-body {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--sd-text);
-  line-height: 1.5;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sd-feat-popup-body p {
-  margin: 0 0 8px;
 }
 
 /* ── Chat Panel ─────────────────── */
