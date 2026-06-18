@@ -944,10 +944,25 @@
   transition: width 0.3s;
 }
 
-.sd-spell-slot-count {
-  font-size: 12px;
-  color: var(--sd-text);
-  font-weight: 600;
+.sd-spell-slot-circles {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sd-spell-slot-circle {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--sd-text-dim);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.sd-spell-slot-circle.filled {
+  background: var(--sd-accent);
+  border-color: var(--sd-accent);
 }
 
 .sd-spell-slots-empty {
@@ -2097,21 +2112,6 @@
   color: var(--sd-text-dim);
   font-size: 18px;
   text-align: center;
-}
-
-/* Greyed-out once the action has actually resolved. */
-.sd-chat-action-btn.sd-chat-action-used {
-  opacity: 0.45;
-  filter: grayscale(0.6);
-  border-color: var(--sd-border);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--sd-text-dim);
-}
-
-.sd-chat-action-btn.sd-chat-action-used:hover {
-  color: var(--sd-text-dim);
-  border-color: var(--sd-border);
-  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Roll total shown in the action column (in place of the Roll tag). */

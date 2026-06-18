@@ -14,19 +14,19 @@ function debug(...args) {
 }
 
 const PANEL_REGISTRY = {
-  inventory: InventoryPanel,
   chat: ChatPanel,
-  spells: SpellsPanel,
   tacmap: TacMapPanel,
+  inventory: InventoryPanel,
+  spells: SpellsPanel,
   effects: EffectsPanel,
   features: FeaturesPanel
 };
 
 const NAV_BUTTONS = [
-  { id: "inventory", label: "Inv", icon: "fas fa-box" },
   { id: "chat", label: "Chat", icon: "fas fa-comment-dots" },
-  { id: "spells", label: "Spells", icon: "fas fa-hat-wizard" },
   { id: "tacmap", label: "TacMap", icon: "fas fa-map-marked-alt" },
+  { id: "inventory", label: "Items", icon: "fas fa-box" },
+  { id: "spells", label: "Spells", icon: "fas fa-hat-wizard" },
   { id: "effects", label: "Effects", icon: "fas fa-magic" },
   { id: "features", label: "Features", icon: "fas fa-star" }
 ];

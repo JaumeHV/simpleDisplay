@@ -126,6 +126,19 @@ export class SpellsPanel extends PanelBase {
     const slotsEl = this._containerEl?.querySelector("#sd-spell-slots");
     if (!slotsEl) return;
     const spells = this._actor?.system?.spells ?? {};
+    const barColor = (pct) => {
+      if (pct >= 75) return "#4ade80";
+      if (pct >= 50) return "#fbbf24";
+      if (pct >= 25) return "#fb923c";
+      return "#ff6b6b";
+    };
+    const circlesHtml = (value, max) => {
+      let out = "";
+      for (let i = 0; i < max; i++) {
+        out += `<span class="sd-spell-slot-circle${i < value ? " filled" : ""}"></span>`;
+      }
+      return `<div class="sd-spell-slot-circles">${out}</div>`;
+    };
     let html = "";
     for (let i = 1; i <= 9; i++) {
       const slot = spells[`spell${i}`];
@@ -134,13 +147,12 @@ export class SpellsPanel extends PanelBase {
       const value = slot.value ?? max;
       if (max === 0) continue;
       const pct = max > 0 ? (value / max) * 100 : 0;
-      const color = pct === 0 ? "#ff6b6b" : pct <= 0.25 ? "#fb923c" : "#4ade80";
       html += `<div class="sd-spell-slot" title="${LEVEL_LABELS[i]}">
         <span class="sd-spell-slot-label">${LEVEL_LABELS[i]}</span>
         <div class="sd-spell-slot-bar">
-          <div class="sd-spell-slot-fill" style="width:${pct}%;background:${color}"></div>
+          <div class="sd-spell-slot-fill" style="width:${pct}%;background:${barColor(pct)}"></div>
         </div>
-        <span class="sd-spell-slot-count">${value}/${max}</span>
+        ${circlesHtml(value, max)}
       </div>`;
     }
     if (spells.pact?.max) {
@@ -153,7 +165,7 @@ export class SpellsPanel extends PanelBase {
         <div class="sd-spell-slot-bar">
           <div class="sd-spell-slot-fill" style="width:${pct}%;background:#a855f7"></div>
         </div>
-        <span class="sd-spell-slot-count">${value}/${max}</span>
+        ${circlesHtml(value, max)}
       </div>`;
     }
     slotsEl.innerHTML = html || '<div class="sd-spell-slots-empty">No spell slots</div>';
@@ -171,7 +183,7 @@ export class SpellsPanel extends PanelBase {
 
     let spells = this._allSpells;
     if (this._levelFilter !== "all") {
-      spells = spells.filter(s => (s.system.spellLevel ?? 0) === this._levelFilter);
+      spells = spells.filter(s => (s.system.level ?? 0) === this._levelFilter);
     }
     if (this._searchTerm) {
       const term = this._searchTerm.toLowerCase();
@@ -180,7 +192,7 @@ export class SpellsPanel extends PanelBase {
 
     const groups = {};
     for (const spell of spells) {
-      const level = spell.system.spellLevel ?? 0;
+      const level = spell.system.level ?? 0;
       (groups[level] ??= []).push(spell);
     }
 
@@ -273,7 +285,7 @@ export class SpellsPanel extends PanelBase {
     const schoolEntry = CONFIG?.DND5E?.spellSchools?.[school];
     const schoolKey = typeof schoolEntry === "string" ? schoolEntry : schoolEntry?.label ?? school;
     const schoolLabel = school ? (game.i18n?.localize(schoolKey) ?? school) : "";
-    const level = spell.system.spellLevel ?? 0;
+    const level = spell.system.level ?? 0;
     const levelLabel = level === 0 ? "Cantrip" : `${level}${level === 1 ? "st" : level === 2 ? "nd" : level === 3 ? "rd" : "th"} level`;
     const actEntry = CONFIG?.DND5E?.abilityActivationTypes?.[spell.system.activation?.type];
     const actKey = typeof actEntry === "string" ? actEntry : actEntry?.label ?? spell.system.activation?.type;

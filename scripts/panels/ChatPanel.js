@@ -15,7 +15,6 @@ export class ChatPanel extends PanelBase {
     this._updateHookId = null;
     this._autoScroll = true;
     this._detailEl = null;
-    this._usedActions = new Set();
   }
 
   async render(actor, containerEl) {
@@ -162,7 +161,7 @@ export class ChatPanel extends PanelBase {
         actionsEl.appendChild(clone);
       }
       // Wire up native dnd5e behavior on the cloned buttons.
-      this._wireNativeListeners(msg, actionsEl, msg.id);
+      this._wireNativeListeners(msg, actionsEl);
     } else {
       actionsEl.innerHTML = `<div class="sd-chat-card-noactions">—</div>`;
     }
@@ -324,7 +323,7 @@ export class ChatPanel extends PanelBase {
     return rolls.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
   }
 
-  _wireNativeListeners(msg, actionsEl, msgId) {
+  _wireNativeListeners(msg, actionsEl) {
     let nativeWired = false;
     try {
       const activity = msg.getAssociatedActivity?.();
@@ -337,46 +336,10 @@ export class ChatPanel extends PanelBase {
     }
 
     actionsEl.querySelectorAll(".sd-chat-action-btn").forEach(btn => {
-      const action = btn.dataset.action;
-      const key = `${msgId}:${action}`;
-
-      // Re-apply persisted used state across rebuilds.
-      if (this._usedActions.has(key)) btn.classList.add("sd-chat-action-used");
-
-      // Fallback click dispatch when native wiring was unavailable.
       if (!nativeWired) {
         btn.addEventListener("click", () => this._fallbackButtonClick(msg, btn));
       }
-      // Grey the button once its action actually resolves.
-      btn.addEventListener("click", () => this._markUsedOnResolve(key, btn));
     });
-  }
-
-  /**
-   * Grey a button only after its action resolves (a chat message / roll / use
-   * event fires shortly after the click). A cancelled dialog produces none of
-   * these, so the button stays active.
-   * @param {string} key  `${msgId}:${action}` — persisted across rebuilds.
-   * @param {HTMLElement} btn
-   */
-  _markUsedOnResolve(key, btn) {
-    if (btn.classList.contains("sd-chat-action-used")) return;
-    const events = ["createChatMessage", "dnd5e.rollAttackV2", "dnd5e.rollDamageV2", "dnd5e.postUseActivity"];
-    const ids = [];
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      for (const [name, id] of ids) Hooks.off(name, id);
-      clearTimeout(timer);
-    };
-    const resolve = () => {
-      btn.classList.add("sd-chat-action-used");
-      this._usedActions.add(key);
-      finish();
-    };
-    for (const name of events) ids.push([name, Hooks.once(name, resolve)]);
-    const timer = setTimeout(finish, 6000);
   }
 
   _fallbackButtonClick(msg, clonedBtn) {
