@@ -15,6 +15,7 @@ export class ChatPanel extends PanelBase {
     this._updateHookId = null;
     this._filter = "all";
     this._autoScroll = true;
+    this._detailEl = null;
   }
 
   async render(actor, containerEl) {
@@ -148,15 +149,17 @@ export class ChatPanel extends PanelBase {
     const descEl = chatCard.querySelector(".card-content .wrapper, .card-content");
     const descHtml = descEl?.innerHTML?.trim() || "";
 
-    // Property pills (RITUAL, V/S/M, durations, ranges, etc.)
-    const pills = [...chatCard.querySelectorAll(".card-footer .pill .label, .card-footer .pill")]
-      .map(p => p.textContent.trim())
-      .filter(Boolean);
+    // Property pills (RITUAL, V/S/M, durations, ranges, etc.). Read .label when
+    // present, otherwise the pill text — but never both (avoids duplicates).
+    const pills = this._extractPills(chatCard);
 
     // Supplement lines (e.g. Materials).
     const supplements = [...chatCard.querySelectorAll(".supplement")]
       .map(s => s.innerHTML.trim())
       .filter(Boolean);
+
+    // Roll results carried by this message (attack/damage/save totals).
+    const rollHtml = this._renderRolls(msg);
 
     // Real action buttons — preserve their data-* attributes so native handlers fire.
     const buttons = [...chatCard.querySelectorAll(".card-buttons button, button[data-action]")];
@@ -169,6 +172,7 @@ export class ChatPanel extends PanelBase {
           <span class="sd-chat-card-time">${speaker ? escapeHtml(speaker) + " · " : ""}${time}</span>
         </div>
         ${subtitle ? `<div class="sd-chat-card-subtitle">${subtitle}</div>` : ""}
+        ${rollHtml ? `<div class="sd-chat-card-rolls">${rollHtml}</div>` : ""}
         ${descHtml ? `<div class="sd-chat-card-desc">${descHtml}</div>` : ""}
         ${supplements.length ? `<div class="sd-chat-card-supplements">${supplements.map(s => `<div class="sd-chat-card-supplement">${s}</div>`).join("")}</div>` : ""}
         ${pills.length ? `<div class="sd-chat-card-pills">${pills.map(p => `<span class="sd-chat-pill">${escapeHtml(p)}</span>`).join("")}</div>` : ""}
@@ -190,11 +194,91 @@ export class ChatPanel extends PanelBase {
       actionsEl.innerHTML = `<div class="sd-chat-card-noactions">—</div>`;
     }
 
-    // Collapsible description toggle.
-    if (descHtml) {
-      const titleEl = card.querySelector(".sd-chat-card-title");
-      titleEl?.addEventListener("click", () => card.classList.toggle("sd-chat-card-expanded"));
+    // Tap the title (or description) to open the full-text popup.
+    if (descHtml || subtitle) {
+      const open = () => this._openDetail({ img, title, subtitle, descHtml, supplements, pills, rollHtml });
+      card.querySelector(".sd-chat-card-title")?.addEventListener("click", open);
+      card.querySelector(".sd-chat-card-desc")?.addEventListener("click", open);
     }
+  }
+
+  _extractPills(chatCard) {
+    const out = [];
+    const seen = new Set();
+    for (const pill of chatCard.querySelectorAll(".card-footer .pill")) {
+      const label = pill.querySelector(".label");
+      const text = (label ? label.textContent : pill.textContent).trim();
+      if (text && !seen.has(text)) { seen.add(text); out.push(text); }
+    }
+    return out;
+  }
+
+  /**
+   * Render roll totals + formulas carried by a message into compact HTML.
+   * @returns {string}
+   */
+  _renderRolls(msg) {
+    const rolls = msg.rolls ?? [];
+    if (!rolls.length) return "";
+    let html = "";
+    for (const roll of rolls) {
+      try {
+        const total = roll.total ?? "?";
+        const formula = roll.formula ?? "";
+        const flavor = roll.options?.flavor || roll.options?.type || "";
+        const dice = (roll.dice ?? []).map(d => {
+          const faces = `d${d.faces}`;
+          const results = (d.results ?? []).map(r => {
+            const cls = r.discarded ? "discard" : r.rerolled ? "reroll" : "";
+            const crit = (d.faces === 20 && r.result === 20) ? "max" : (d.faces === 20 && r.result === 1) ? "min" : "";
+            return `<span class="sd-die ${cls} ${crit}">${r.result}</span>`;
+          }).join("");
+          return `<span class="sd-die-group" title="${escapeHtml(faces)}">${results}</span>`;
+        }).join("");
+        html += `<div class="sd-chat-roll">
+          ${flavor ? `<span class="sd-chat-roll-flavor">${escapeHtml(String(flavor))}</span>` : ""}
+          <span class="sd-chat-roll-formula">${escapeHtml(formula)}</span>
+          ${dice ? `<span class="sd-chat-roll-dice">${dice}</span>` : ""}
+          <span class="sd-chat-roll-total">${escapeHtml(String(total))}</span>
+        </div>`;
+      } catch (err) {
+        console.warn("Simple Display: roll render error", err);
+      }
+    }
+    return html;
+  }
+
+  _openDetail(data) {
+    if (!this._containerEl) return;
+    this._closeDetail();
+    const overlay = document.createElement("div");
+    overlay.className = "sd-chat-detail-overlay";
+    overlay.innerHTML = `
+      <div class="sd-chat-detail">
+        <button type="button" class="sd-chat-detail-close" title="Close"><i class="fas fa-times"></i></button>
+        <div class="sd-chat-detail-header">
+          <img src="${data.img}" alt="" class="sd-chat-detail-icon">
+          <div>
+            <div class="sd-chat-detail-title">${escapeHtml(data.title)}</div>
+            ${data.subtitle ? `<div class="sd-chat-detail-subtitle">${data.subtitle}</div>` : ""}
+          </div>
+        </div>
+        ${data.rollHtml ? `<div class="sd-chat-card-rolls">${data.rollHtml}</div>` : ""}
+        ${data.descHtml ? `<div class="sd-chat-detail-desc">${data.descHtml}</div>` : ""}
+        ${data.supplements?.length ? `<div class="sd-chat-card-supplements">${data.supplements.map(s => `<div class="sd-chat-card-supplement">${s}</div>`).join("")}</div>` : ""}
+        ${data.pills?.length ? `<div class="sd-chat-card-pills">${data.pills.map(p => `<span class="sd-chat-pill">${escapeHtml(p)}</span>`).join("")}</div>` : ""}
+      </div>
+    `;
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay || e.target.closest(".sd-chat-detail-close")) this._closeDetail();
+    });
+    this._containerEl.querySelector(".sd-chat-panel")?.appendChild(overlay);
+    this._detailEl = overlay;
+  }
+
+  _closeDetail() {
+    this._detailEl?.remove();
+    this._detailEl = null;
   }
 
   _buildTextCard(card, msg, parser, speaker, time) {
@@ -210,7 +294,12 @@ export class ChatPanel extends PanelBase {
     else { icon = "fa-comment"; typeLabel = "Chat"; }
 
     const flavor = msg.flavor ? `<div class="sd-chat-card-subtitle">${msg.flavor}</div>` : "";
-    const content = parser.innerHTML || "";
+    const rollHtml = this._renderRolls(msg);
+
+    // Strip the raw rendered dice block from the text content when we already
+    // render rolls ourselves, to avoid showing the unstyled native markup.
+    parser.querySelectorAll(".dice-roll").forEach(el => el.remove());
+    const content = parser.innerHTML.trim();
 
     card.innerHTML = `
       <div class="sd-chat-card-thumb"><i class="fas ${icon}"></i></div>
@@ -220,13 +309,25 @@ export class ChatPanel extends PanelBase {
           <span class="sd-chat-card-time">${time}</span>
         </div>
         ${flavor}
-        <div class="sd-chat-card-desc sd-chat-card-text">${content}</div>
+        ${rollHtml ? `<div class="sd-chat-card-rolls">${rollHtml}</div>` : ""}
+        ${content ? `<div class="sd-chat-card-desc sd-chat-card-text">${content}</div>` : ""}
       </div>
       <div class="sd-chat-card-divider"></div>
       <div class="sd-chat-card-actions">
         <span class="sd-chat-pill sd-chat-pill-type">${typeLabel}</span>
       </div>
     `;
+
+    if (content || rollHtml) {
+      const open = () => this._openDetail({
+        img: "icons/svg/d20.svg",
+        title: speaker,
+        subtitle: msg.flavor || "",
+        descHtml: content,
+        rollHtml
+      });
+      card.querySelector(".sd-chat-card-title")?.addEventListener("click", open);
+    }
   }
 
   _wireNativeListeners(msg, actionsEl) {
@@ -254,6 +355,7 @@ export class ChatPanel extends PanelBase {
   destroy() {
     if (this._hookId) { Hooks.off("createChatMessage", this._hookId); this._hookId = null; }
     if (this._updateHookId) { Hooks.off("updateChatMessage", this._updateHookId); this._updateHookId = null; }
+    this._closeDetail();
     this._containerEl = null;
     this._actor = null;
     super.destroy();
