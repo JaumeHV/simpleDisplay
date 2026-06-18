@@ -1784,39 +1784,10 @@
 .sd-chat-toolbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   padding: 0 0 6px;
   flex-shrink: 0;
-}
-
-.sd-chat-filters {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-
-.sd-chat-filter-pill {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--sd-border);
-  border-radius: 14px;
-  color: var(--sd-text-dim);
-  font-size: 11px;
-  font-family: inherit;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  min-height: 28px;
-}
-
-.sd-chat-filter-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--sd-text);
-}
-
-.sd-chat-filter-pill.active {
-  background: rgba(106, 168, 255, 0.12);
-  border-color: var(--sd-accent);
-  color: var(--sd-accent);
 }
 
 .sd-chat-scroll-btn {
@@ -1825,10 +1796,12 @@
   border-radius: 4px;
   color: var(--sd-text-dim);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 5px 12px;
   font-size: 12px;
+  font-family: inherit;
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
+  min-height: 30px;
 }
 
 .sd-chat-scroll-btn.active {
@@ -1911,6 +1884,25 @@
 .sd-chat-card-thumb i {
   font-size: 28px;
   color: var(--sd-text-dim);
+}
+
+/* Distinct icon tint per roll kind. */
+.sd-chat-card-attack .sd-chat-card-thumb {
+  background: rgba(106, 168, 255, 0.12);
+}
+.sd-chat-card-attack .sd-chat-card-thumb i {
+  color: var(--sd-accent);
+}
+
+.sd-chat-card-damage .sd-chat-card-thumb {
+  background: rgba(248, 113, 113, 0.14);
+}
+.sd-chat-card-damage .sd-chat-card-thumb i {
+  color: #f87171;
+}
+
+.sd-chat-card-roll .sd-chat-card-thumb i {
+  color: #fbbf24;
 }
 
 /* ── Center: Content ── */
@@ -2106,6 +2098,49 @@
   font-size: 18px;
   text-align: center;
 }
+
+/* Greyed-out once the action has actually resolved. */
+.sd-chat-action-btn.sd-chat-action-used {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  border-color: var(--sd-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--sd-text-dim);
+}
+
+.sd-chat-action-btn.sd-chat-action-used:hover {
+  color: var(--sd-text-dim);
+  border-color: var(--sd-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Roll total shown in the action column (in place of the Roll tag). */
+.sd-chat-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+}
+
+.sd-chat-total-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sd-text-dim);
+}
+
+.sd-chat-total-num {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fbbf24;
+}
+
+.sd-chat-card-attack .sd-chat-total-num { color: var(--sd-accent); }
+.sd-chat-card-damage .sd-chat-total-num { color: #f87171; }
 
 /* ── Roll Readouts ── */
 
